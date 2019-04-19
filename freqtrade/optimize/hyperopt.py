@@ -28,6 +28,8 @@ from freqtrade.optimize.backtesting import Backtesting
 from freqtrade.state import RunMode
 from freqtrade.resolvers import HyperOptResolver
 
+import numpy as np
+import datetime
 logger = logging.getLogger(__name__)
 
 MAX_LOSS = 100000  # just a big enough number to be bad result in loss optimization
@@ -60,7 +62,7 @@ class Hyperopt(Backtesting):
         # this is expexted avg profit * expected trade count
         # for example 3.5%, 1100 trades, self.expected_max_profit = 3.85
         # check that the reported Σ% values do not exceed this!
-        self.expected_max_profit = 3.0
+        self.expected_max_profit = 1000
 
         # Previous evaluations
         self.trials_file = os.path.join('user_data', 'hyperopt_results.pickle')
@@ -127,15 +129,61 @@ class Hyperopt(Backtesting):
             print('.', end='')
             sys.stdout.flush()
 
-    def calculate_loss(self, total_profit: float, trade_count: int, trade_duration: float) -> float:
+    # def calculate_loss(self, total_profit: float, trade_count: int, trade_duration: float) -> float:
+    #     """
+    #     Objective function, returns smaller number for more optimal results
+    #     """
+    #     trade_loss = 1 - 0.25 * exp(-(trade_count - self.target_trades) ** 2 / 10 ** 5.8)
+    #     profit_loss = max(0, 1 - total_profit / self.expected_max_profit)
+    #     duration_loss = 0.4 * min(trade_duration / self.max_accepted_trade_duration, 1)
+    #     result = trade_loss + profit_loss + duration_loss
+    #     return result
+
+    def calculate_loss(self, total_profit: list, trade_count: int, trade_duration: float) -> float:
+        """
+        Objective function, returns sortino ratio
+        """
+        period = self.max_date - self.min_date
+        days_period = period.days
+
+        sum_total_profit = total_profit.sum()
+        #adding slippage of 0.1% per trade
+        total_profit = total_profit - 0.0005
+        avg_return = sum_total_profit/days_period
+
+        std = (total_profit[total_profit < 0]).std()
+        #print(f'standard deviation: {std}\n')
+        if (std < 0.001):
+            std = 0.001 #total_profit.std()
+
+        sortino_ratio = (avg_return/std)
+        #print(f'sortino_ratio: {sortino_ratio}\n')
+
+        sortino_ratio = -sortino_ratio
+        return sortino_ratio
+
+    def calculate_loss_shapre_ratio(self, total_profit: list, trade_count: int, trade_duration: float) -> float:
         """
         Objective function, returns smaller number for more optimal results
         """
-        trade_loss = 1 - 0.25 * exp(-(trade_count - self.target_trades) ** 2 / 10 ** 5.8)
-        profit_loss = max(0, 1 - total_profit / self.expected_max_profit)
-        duration_loss = 0.4 * min(trade_duration / self.max_accepted_trade_duration, 1)
-        result = trade_loss + profit_loss + duration_loss
-        return result
+        period = self.max_date - self.min_date
+        days_period = period.days
+
+        #adding slippage of 0.1% per trade
+        total_profit  = total_profit - 0.0005
+        sum_total_profit = total_profit.sum()
+        avg_return = sum_total_profit/days_period
+
+        sd_total_profit = np.std(total_profit)
+        if (sd_total_profit != 0.):
+            sharp_ratio = (avg_return/(sd_total_profit)) * 19.10497#np.sqrt(365)
+        else:
+            sharp_ratio = -20
+
+        #sharp_ratio = 1 - sharp_ratio / 10
+        sharp_ratio = -sharp_ratio
+
+        return sharp_ratio
 
     def has_space(self, space: str) -> bool:
         """
@@ -184,6 +232,8 @@ class Hyperopt(Backtesting):
 
         processed = load(TICKERDATA_PICKLE)
         min_date, max_date = get_timeframe(processed)
+        self.min_date = min_date
+        self.max_date = max_date
         results = self.backtest(
             {
                 'stake_amount': self.config['stake_amount'],
@@ -195,7 +245,8 @@ class Hyperopt(Backtesting):
         )
         result_explanation = self.format_results(results)
 
-        total_profit = results.profit_percent.sum()
+        #total_profit = results.profit_percent.sum()
+        total_profit = results.profit_percent
         trade_count = len(results.index)
         trade_duration = results.trade_duration.mean()
 
@@ -222,7 +273,7 @@ class Hyperopt(Backtesting):
         avg_profit = results.profit_percent.mean() * 100.0
         total_profit = results.profit_abs.sum()
         stake_cur = self.config['stake_currency']
-        profit = results.profit_percent.sum()
+        profit = results.profit_percent.sum()* 100.0
         duration = results.trade_duration.mean()
 
         return (f'{trades:6d} trades. Avg profit {avg_profit: 5.2f}%. '
@@ -243,7 +294,7 @@ class Hyperopt(Backtesting):
                         wrap_non_picklable_objects(self.generate_optimizer))(v) for v in asked)
 
     def load_previous_results(self):
-        """ read trials file if we have one """
+        #read trials file if we have one
         if os.path.exists(self.trials_file) and os.path.getsize(self.trials_file) > 0:
             self.trials = self.read_trials()
             logger.info(
@@ -261,9 +312,9 @@ class Hyperopt(Backtesting):
             timerange=timerange
         )
 
-        if self.has_space('buy') or self.has_space('sell'):
-            self.strategy.advise_indicators = \
-                self.custom_hyperopt.populate_indicators  # type: ignore
+        #if self.has_space('buy') or self.has_space('sell'):
+        self.strategy.advise_indicators = \
+            self.custom_hyperopt.populate_indicators  # type: ignore
         dump(self.strategy.tickerdata_to_dataframe(data), TICKERDATA_PICKLE)
         self.exchange = None  # type: ignore
         self.load_previous_results()
@@ -314,13 +365,13 @@ def start(args: Namespace) -> None:
     config['exchange']['key'] = ''
     config['exchange']['secret'] = ''
 
-    if config.get('strategy') and config.get('strategy') != 'DefaultStrategy':
-        logger.error("Please don't use --strategy for hyperopt.")
-        logger.error(
-            "Read the documentation at "
-            "https://github.com/freqtrade/freqtrade/blob/develop/docs/hyperopt.md "
-            "to understand how to configure hyperopt.")
-        raise ValueError("--strategy configured but not supported for hyperopt")
+    # if config.get('strategy') and config.get('strategy') != 'DefaultStrategy':
+    #     logger.error("Please don't use --strategy for hyperopt.")
+    #     logger.error(
+    #         "Read the documentation at "
+    #         "https://github.com/freqtrade/freqtrade/blob/develop/docs/hyperopt.md "
+    #         "to understand how to configure hyperopt.")
+    #     raise ValueError("--strategy configured but not supported for hyperopt")
     # Initialize backtesting object
     hyperopt = Hyperopt(config)
     hyperopt.start()

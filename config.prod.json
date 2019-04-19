@@ -1,0 +1,113 @@
+{
+    "max_open_trades": 3,
+    "stake_currency": "USDT",
+    "stake_amount": 50,
+    "fiat_display_currency": "USD",
+    "ticker_interval" : "4h",
+    "dry_run": false,
+    "db_url": "sqlite:///user_data/trades/prod/tradesv3.sqlite",
+    "trailing_stop": true,
+    "trailing_stop_positive":  0.005,
+    "trailing_stop_positive_offset":  0.01,
+    "trailing_only_offset_is_reached": true,
+    "minimal_roi" : {
+        "1000000" : 0.0
+    },
+    "order_types" : {
+        "buy": "limit",
+        "sell": "limit",
+        "stoploss": "market",
+        "stoploss_on_exchange": true
+    },
+    "stoploss" : -0.076,
+    "order_time_in_force" : {
+        "buy": "gtc",
+        "sell": "gtc"
+    },
+    "unfilledtimeout": {
+        "buy": 10,
+        "sell": 30
+    },
+    "strategy" : "Ichimoku",
+    "bid_strategy": {
+        "ask_last_balance": 0.99,
+        "use_order_book": true,
+        "order_book_top": 1,
+        "check_depth_of_market": {
+            "enabled": false,
+            "bids_to_ask_delta": 1
+        }
+    },
+    "ask_strategy":{
+        "use_order_book": false,
+        "order_book_min": 1,
+        "order_book_max": 9
+    },
+    "pairlist": {
+        "method": "VolumePairList", 
+        "config": {
+            "number_assets": 50,
+            "sort_key": "quoteVolume"
+        }
+    },
+    "exchange": {
+        "name": "binance",
+        "key": "i6AV90UogbgKhZdaXCbz6I0nB6JcaEZXmAd5CJJXw6sloHdbCV4X4jDGxnDo14Kg",
+        "secret": "2SSc9UC41mTorArlRpMCk1Uh1Vwdgxv7g1AKV6hmUf6hXFn3l5A1hi4uptVDJULy",
+        "ccxt_config": {"enableRateLimit": true},
+        "ccxt_async_config": {
+            "enableRateLimit": true,
+            "rateLimit": 200
+        },
+        "pair_whitelist": [
+            "BTC/USDT",
+            "ETH/USDT",
+            "XRP/USDT",
+            "BCH/USDT",
+            "EOS/USDT",
+            "LTC/USDT",
+            "TRX/USDT",
+            "ADA/USDT",
+            "NEO/USDT",
+            "ETC/USDT",
+            "XLM/USDT",
+            "ONT/USDT",
+            "IOTA/USDT",
+            "QTUM/USDT"
+        ],
+        "pair_blacklist": [
+            "BNB/USDT"
+        ]
+    },
+    "experimental": {
+        "use_sell_signal": true,
+        "sell_profit_only": false,
+        "ignore_roi_if_buy_signal": false
+    },
+    "edge": {
+        "enabled": false,
+        "process_throttle_secs": 3600,
+        "calculate_since_number_of_days": 7,
+        "capital_available_percentage": 0.5,
+        "allowed_risk": 0.01,
+        "stoploss_range_min": -0.01,
+        "stoploss_range_max": -0.1,
+        "stoploss_range_step": -0.01,
+        "minimum_winrate": 0.60,
+        "minimum_expectancy": 0.20,
+        "min_trade_number": 10,
+        "max_trade_duration_minute": 1440,
+        "remove_pumps": false
+    },
+    "telegram": {
+        "enabled": true,
+        "token": "888077106:AAFKDeA8uOB-7x9ynsRCZLcCywSbRsPZ2fc",
+        "chat_id": "699024426"
+    },
+    "initial_state": "running",
+    "forcebuy_enable": false,
+    "internals": {
+        "process_throttle_secs": 5
+    },
+    "export" : true
+}

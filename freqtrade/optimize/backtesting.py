@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional
 
+import numpy as np
 from pandas import DataFrame
 from tabulate import tabulate
 
@@ -24,6 +25,8 @@ from freqtrade.persistence import Trade
 from freqtrade.resolvers import ExchangeResolver, StrategyResolver
 from freqtrade.state import RunMode
 from freqtrade.strategy.interface import SellType, IStrategy
+
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +107,50 @@ class Backtesting(object):
         # since a "perfect" stoploss-sell is assumed anyway
         # And the regular "stoploss" function would not apply to that case
         self.strategy.order_types['stoploss_on_exchange'] = False
+    def generate_text_table_performance(self, data: Dict[str, Dict], results: DataFrame) -> str:
+
+        profits_adj = results['profit_percent'] - 0.0005 #slipage
+
+        
+
+        min_date, max_date = optimize.get_timeframe(data)
+        days = (max_date - min_date).days
+
+        def calculate_sharpe_ratio():
+            avg_return = profits_adj.sum()/days
+            return (avg_return/profits_adj.std()) * np.sqrt(365)
+        
+        def calculate_sortino_ratio():
+            avg_return = profits_adj.sum()/days
+            return (avg_return/profits_adj[profits_adj < 0].std()) * np.sqrt(365)
+
+        def get_max_drawdown():
+            results['portfolio_percentage'] = (profits_adj/self.config.get("max_open_trades"))*100
+            daily = results.resample('D', on='open_time').sum()
+
+            daily['cumulative'] = (daily['portfolio_percentage']).cumsum().round(4)
+            daily['high'] = daily['cumulative'].cummax()
+            ax = daily['cumulative'].plot(title="Drawdown %")
+            ax.set_ylabel('percentage')
+            plt.show()
+            return (daily['cumulative'] - daily['high']).min()
+            
+
+        tabular_data = []
+        headers = ['Metric', 'Value']
+
+        max_draw_down = get_max_drawdown()
+        tabular_data.append(['Sharpe Ratio', calculate_sharpe_ratio()])
+        tabular_data.append(['Sortino Ratio', calculate_sortino_ratio()])
+        tabular_data.append(['Max Profit %', profits_adj.max() * 100])
+        tabular_data.append(['Max Loss %', profits_adj.min() * 100])
+        tabular_data.append(['Avg Profit %', profits_adj[profits_adj > 0].sum()/days * 100])
+        tabular_data.append(['Avg Loss %', profits_adj[profits_adj < 0].sum()/days * 100])
+        tabular_data.append(['Profitability %', profits_adj[profits_adj > 0].count()/profits_adj.count() * 100])
+        tabular_data.append(['Max Drawdown %', max_draw_down])
+        tabular_data.append(['No of Days', days])
+
+        return tabulate(tabular_data, headers=headers, tablefmt="pipe")
 
     def _generate_text_table(self, data: Dict[str, Dict], results: DataFrame,
                              skip_nan: bool = False) -> str:
@@ -478,6 +525,9 @@ class Backtesting(object):
 
             print(' LEFT OPEN TRADES REPORT '.center(133, '='))
             print(self._generate_text_table(data, results.loc[results.open_at_end], True))
+
+            print(' PERFORMANCE METRICS '.center(133, '='))
+            print(self.generate_text_table_performance(data, results))
             print()
         if len(all_results) > 1:
             # Print Strategy summary table
