@@ -14,14 +14,11 @@ class Ichimoku(IStrategy):
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         
         #optimized for 4H window
-        self.ichimoku(dataframe, '', tenkan_sen_window=15, kijun_sen_window=27, senkou_span_offset=15, senkou_span_b_window=50)
-        self.ichimoku(dataframe, 'sell_', tenkan_sen_window=13, kijun_sen_window=15)
-        #self.ichimoku(dataframe, '', tenkan_sen_window=15, kijun_sen_window=29, senkou_span_offset=30, senkou_span_b_window=62)
-        #self.ichimoku(dataframe, 'sell_', tenkan_sen_window=13, kijun_sen_window=20)
+        #self.ichimoku(dataframe, '', tenkan_sen_window=15, kijun_sen_window=27, senkou_span_offset=15, senkou_span_b_window=50)
+        #self.ichimoku(dataframe, 'sell_', tenkan_sen_window=13, kijun_sen_window=15)
+        self.ichimoku(dataframe, '', tenkan_sen_window=7, kijun_sen_window=19, senkou_span_offset=34, senkou_span_b_window=62)
+        self.ichimoku(dataframe, 'sell_', tenkan_sen_window=15, kijun_sen_window=31)
 
-        #1H
-        #self.ichimoku(dataframe, '', tenkan_sen_window=11, kijun_sen_window=18, senkou_span_offset=15, senkou_span_b_window=70)
-        #self.ichimoku(dataframe, 'sell_', tenkan_sen_window=6, kijun_sen_window=23)
         return dataframe
 
     def ichimoku(self, df: DataFrame, prefix='', tenkan_sen_window=9, kijun_sen_window=26, senkou_span_offset=26, senkou_span_b_window=52, chikou_span_offset=26) -> DataFrame:

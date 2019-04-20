@@ -109,9 +109,8 @@ class Backtesting(object):
         self.strategy.order_types['stoploss_on_exchange'] = False
     def generate_text_table_performance(self, data: Dict[str, Dict], results: DataFrame) -> str:
 
-        profits_adj = results['profit_percent'] - 0.0005 #slipage
-
-        
+        max_open_trades = self.config['max_open_trades']
+        profits_adj = (results['profit_percent'] - 0.0005)/max_open_trades #slipage
 
         min_date, max_date = optimize.get_timeframe(data)
         days = (max_date - min_date).days
@@ -125,7 +124,7 @@ class Backtesting(object):
             return (avg_return/profits_adj[profits_adj < 0].std()) * np.sqrt(365)
 
         def get_max_drawdown():
-            results['portfolio_percentage'] = (profits_adj/self.config.get("max_open_trades"))*100
+            results['portfolio_percentage'] = profits_adj*100
             daily = results.resample('D', on='open_time').sum()
 
             daily['cumulative'] = (daily['portfolio_percentage']).cumsum().round(4)
@@ -140,13 +139,24 @@ class Backtesting(object):
         headers = ['Metric', 'Value']
 
         max_draw_down = get_max_drawdown()
+        avg_profit = (profits_adj[profits_adj > 0]).mean() 
+        avg_loss = (profits_adj[profits_adj < 0]).mean()
+        win_rate = profits_adj[profits_adj > 0].count()/profits_adj.count()
+        loss_rate = 1 - win_rate
+        risk_reward_ratio = avg_profit/(-avg_loss)
+        expectancy_ratio = (risk_reward_ratio * win_rate) - loss_rate
+        daily_profit = profits_adj.sum()/days
         tabular_data.append(['Sharpe Ratio', calculate_sharpe_ratio()])
         tabular_data.append(['Sortino Ratio', calculate_sortino_ratio()])
         tabular_data.append(['Max Profit %', profits_adj.max() * 100])
         tabular_data.append(['Max Loss %', profits_adj.min() * 100])
-        tabular_data.append(['Avg Profit %', profits_adj[profits_adj > 0].sum()/days * 100])
-        tabular_data.append(['Avg Loss %', profits_adj[profits_adj < 0].sum()/days * 100])
-        tabular_data.append(['Profitability %', profits_adj[profits_adj > 0].count()/profits_adj.count() * 100])
+        tabular_data.append(['Avg Profit %', avg_profit * 100])
+        tabular_data.append(['Avg Loss %', avg_loss * 100])
+        tabular_data.append(['Avg Daily P/L%', daily_profit * 100])
+        tabular_data.append(['Win Rate', win_rate * 100])
+        tabular_data.append(['Loss Rate', loss_rate * 100])
+        tabular_data.append(['Risk Reward Ratio', risk_reward_ratio])
+        tabular_data.append(['Expectancy Ratio %', expectancy_ratio * 100])
         tabular_data.append(['Max Drawdown %', max_draw_down])
         tabular_data.append(['No of Days', days])
 

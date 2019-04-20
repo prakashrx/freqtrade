@@ -11,7 +11,7 @@ WORKDIR /freqtrade
 
 # Install TA-lib
 COPY build_helpers/* /tmp/
-RUN cd /tmp && /tmp/install_ta-lib.sh && rm -r /tmp/*ta-lib*
+RUN chmod 755 /tmp/install_ta-lib.sh && cd /tmp && /tmp/install_ta-lib.sh && rm -r /tmp/*ta-lib*
 
 ENV LD_LIBRARY_PATH /usr/local/lib
 
