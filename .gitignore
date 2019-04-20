@@ -1,3 +1,17 @@
+# Freqtrade rules
+freqtrade/tests/testdata/*.json
+hyperopt_conf.py
+*.sqlite
+.hyperopt
+logfile.txt
+hyperopt_trials.pickle
+hyperopt_results.pickle
+hyperopt_tickerdata.pkl
+user_data/backtest_data/backtest-result.json
+user_data/data/*
+freqtrade-plot.html
+freqtrade-profit-plot.html
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -8,6 +22,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+env/
 build/
 develop-eggs/
 dist/
@@ -23,7 +38,6 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -45,7 +59,6 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
-.pytest_cache/
 
 # Translations
 *.mo
@@ -54,7 +67,6 @@ coverage.xml
 # Django stuff:
 *.log
 local_settings.py
-db.sqlite3
 
 # Flask stuff:
 instance/
@@ -71,34 +83,15 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+*.ipynb
 
 # pyenv
 .python-version
 
-# celery beat schedule file
-celerybeat-schedule
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
 .env
 .venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+.idea
+.vscode
 
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
+.pytest_cache/
 .mypy_cache/
