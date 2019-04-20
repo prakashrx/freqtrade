@@ -15,7 +15,7 @@ jsonschema==3.0.1
 TA-Lib==0.4.17
 tabulate==0.8.3
 coinmarketcap==5.0.3
-
+matplotlib==3.0.3
 # Required for hyperopt
 scikit-optimize==0.5.2
 
