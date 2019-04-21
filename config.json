@@ -6,8 +6,8 @@
     "ticker_interval" : "4h",
     "dry_run": true,
     "db_url": "sqlite:///user_data/trades/dryrun/tradesv3.dryrun.sqlite",
-    "trailing_stop": true,
-    "trailing_stop_positive":  0.005,
+    "trailing_stop": false,
+    "trailing_stop_positive":  0.01,
     "trailing_stop_positive_offset":  0.05,
     "trailing_only_offset_is_reached": true,
     "minimal_roi" : {
@@ -20,8 +20,6 @@
         "stoploss_on_exchange": false
     },
     "stoploss" : -0.076,
-    "stoploss1h" : -0.033,
-
     "order_time_in_force" : {
         "buy": "gtc",
         "sell": "gtc"
@@ -30,7 +28,6 @@
         "buy": 10,
         "sell": 30
     },
-    
     "bid_strategy": {
         "ask_last_balance": 0.99,
         "use_order_book": true,

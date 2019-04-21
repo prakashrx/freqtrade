@@ -1,17 +1,17 @@
 {
-    "max_open_trades": 3,
+    "max_open_trades": 5,
     "stake_currency": "USDT",
-    "stake_amount": 50,
+    "stake_amount": 100,
     "fiat_display_currency": "USD",
     "ticker_interval" : "4h",
     "dry_run": false,
     "db_url": "sqlite:///user_data/trades/prod/tradesv3.sqlite",
-    "trailing_stop": true,
-    "trailing_stop_positive":  0.005,
-    "trailing_stop_positive_offset":  0.01,
+    "trailing_stop": false,
+    "trailing_stop_positive":  0.01,
+    "trailing_stop_positive_offset":  0.05,
     "trailing_only_offset_is_reached": true,
     "minimal_roi" : {
-        "1000000" : 0.0
+        "0" : 100
     },
     "order_types" : {
         "buy": "limit",
@@ -28,7 +28,6 @@
         "buy": 10,
         "sell": 30
     },
-    "strategy" : "Ichimoku",
     "bid_strategy": {
         "ask_last_balance": 0.99,
         "use_order_book": true,
@@ -57,7 +56,7 @@
         "ccxt_config": {"enableRateLimit": true},
         "ccxt_async_config": {
             "enableRateLimit": true,
-            "rateLimit": 200
+            "rateLimit": 500
         },
         "pair_whitelist": [
             "BTC/USDT",
