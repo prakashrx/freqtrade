@@ -9,6 +9,7 @@ hyperopt_results.pickle
 hyperopt_tickerdata.pkl
 user_data/backtest_data/backtest-result.json
 user_data/data/*
+user_data/plots/*
 freqtrade-plot.html
 freqtrade-profit-plot.html
 
