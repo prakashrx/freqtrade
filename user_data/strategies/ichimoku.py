@@ -7,7 +7,7 @@ from pandas import DataFrame
 import freqtrade.vendor.qtpylib.indicators as qtpylib
 from freqtrade.indicator_helpers import fishers_inverse
 from freqtrade.strategy.interface import IStrategy
-
+from freqtrade.state import RunMode
 
 class Ichimoku(IStrategy):
 
@@ -54,6 +54,26 @@ class Ichimoku(IStrategy):
         :param metadata: Additional information, like the currently traded pair
         :return: DataFrame with buy column
         """
+
+        try:
+            if self.dp:
+                if self.dp.runmode in (RunMode.LIVE, RunMode.DRY_RUN):
+                    ticker_data = self.dp._exchange.get_ticker(metadata['pair'])
+                    symbol,bid,ask,last= ticker_data['symbol'],ticker_data['bid'],ticker_data['ask'],ticker_data['last']
+                    
+                    if(ask <=0 or bid <=0 or last <= 0):
+                        dataframe['buy'] = 0
+                        return dataframe
+
+                    spread = ((ask - bid)/last) * 100
+                    if(spread > 0.20):
+                        dataframe['buy'] = 0
+                        return dataframe
+        except:
+            print(f"could not get ticker for pair: {metadata['pair']}")
+            dataframe['buy'] = 0
+            return dataframe
+
         dataframe.loc[
             (
                 (

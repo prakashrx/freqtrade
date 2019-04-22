@@ -21,26 +21,78 @@ function run_container() {
         echo "***Starting freqtrade container(PROD)***"
         docker stop freqtrade > /dev/null
         docker rm freqtrade > /dev/null
+        
+        touch user_data/trades/prod/tradesv3.sqlite
+
         docker run $args \
                 -v /etc/localtime:/etc/localtime:ro \
                 -v $(pwd)/config.prod.json:/freqtrade/config.json \
                 -v $(pwd)/user_data/trades/prod/tradesv3.sqlite:/freqtrade/user_data/prod/tradesv3.sqlite \
+                -v $(pwd)/user_data/strategies:/freqtrade/user_data/strategies \
                 --name freqtrade \
+                --restart unless-stopped \
                 freqtrade \
                 -s $strategy
     else
         echo "***Starting freqtrade container(DEV)***"
         docker stop freqtrade > /dev/null
         docker rm freqtrade > /dev/null
+
+        touch user_data/trades/dryrun/tradesv3.dryrun.sqlite
+
         docker run $args \
             -v /etc/localtime:/etc/localtime:ro \
             -v $(pwd)/config.json:/freqtrade/config.json \
             -v $(pwd)/user_data/trades/dryrun/tradesv3.dryrun.sqlite:/freqtrade/user_data/trades/dryrun/tradesv3.dryrun.sqlite \
+            -v $(pwd)/user_data/strategies:/freqtrade/user_data/strategies \
             --name freqtrade \
+            --restart unless-stopped \
             freqtrade \
             -s $strategy
     fi
 
+}
+
+function run_backtest() {
+    config="config.json"
+    strategy="Ichimoku"
+    freqtrade -c $config -s $strategy backtesting $*
+}
+
+function run_hyperopt() {
+    config="config.json"
+    optimizer="IchimokuOpts"
+    for i in {1..10}; do freqtrade -c $config hyperopt --customhyperopt $optimizer -e 1000 $*; done
+}
+
+function clean() {
+
+    for var in "$@"
+    do
+        case $var in
+        -p)
+            prod=1
+            ;;
+        esac
+    done
+
+    rm -f user_data/hyperopt_results.pickle
+    rm -f user_data/hyperopt_tickerdata.pkl
+    rm -f user_data/freqtrade-plot.html
+    rm -f user_data/trades/dryrun/tradesv3.dryrun.sqlite
+    touch user_data/trades/dryrun/tradesv3.dryrun.sqlite
+
+    if [ $prod ]; then
+
+        read -p "Delete prod tradesv3.sqlite. Are you sure?[No/Yes)?" choice
+        case "$choice" in 
+            Yes) 
+            rm -f user_data/trades/prod/tradesv3.sqlite
+            touch user_data/trades/prod/tradesv3.sqlite
+            echo "Deleted Prod tradesv3.sqlite"
+            ;;
+        esac
+    fi
 }
 
 function run() {
@@ -58,6 +110,18 @@ function run() {
         container)
             shift
             run_container $*
+            ;;
+        backtest)
+            shift
+            run_backtest $*
+            ;;
+        hyperopt)
+            shift
+            run_hyperopt $*
+            ;;
+        clean)
+            shift
+            clean $*
             ;;
         *)
             help
@@ -90,6 +154,10 @@ function help() {
     echo "./start.sh container -i       Run docker container interactively"
     echo "./start.sh container -i -p    Run docker container interactively in Production"
     echo "./start.sh                    Run freqtrade dev locally"
+    echo "./start.sh backtest           Run freqtrade backtesting"
+    echo "./start.sh hyperopt           Run freqtrade hyper optimization"
+    echo "./start.sh clean              Clean up workspace. Deletes dryrun.sqlite, hyperopt, plotting etc"
+    echo "./start.sh clean -p           Clean up workspace. Same as clean. Also cleans prod tradesv3.sqlite"
 }
 
 case $1 in

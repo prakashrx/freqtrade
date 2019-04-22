@@ -1,7 +1,7 @@
 {
-    "max_open_trades": 10,
+    "max_open_trades": 5,
     "stake_currency": "USDT",
-    "stake_amount": 50,
+    "stake_amount": 100,
     "fiat_display_currency": "USD",
     "ticker_interval" : "4h",
     "dry_run": true,
