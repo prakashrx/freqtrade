@@ -26,6 +26,7 @@ function run_container() {
                 -v $(pwd)/config.prod.json:/freqtrade/config.json \
                 -v $(pwd)/user_data/trades/prod/tradesv3.sqlite:/freqtrade/user_data/prod/tradesv3.sqlite \
                 --name freqtrade \
+                --restart unless-stopped
                 freqtrade \
                 -s $strategy
     else
@@ -37,10 +38,25 @@ function run_container() {
             -v $(pwd)/config.json:/freqtrade/config.json \
             -v $(pwd)/user_data/trades/dryrun/tradesv3.dryrun.sqlite:/freqtrade/user_data/trades/dryrun/tradesv3.dryrun.sqlite \
             --name freqtrade \
+            --restart unless-stopped
             freqtrade \
             -s $strategy
     fi
 
+}
+
+function run_backtest() {
+    config="config.json"
+    strategy="Ichimoku"
+    freqtrade -c $config -s $strategy backtesting $*
+}
+
+function run_hyperopt() {
+    config="config.json"
+    optimizer="IchimokuOpts"
+    #rm -f user_data/hyperopt_results.pickle
+    #rm -f user_data/hyperopt_tickerdata.pkl
+    for i in {1..10}; do freqtrade -c $config hyperopt --customhyperopt $optimizer -e 1000 $*; done
 }
 
 function run() {
@@ -58,6 +74,14 @@ function run() {
         container)
             shift
             run_container $*
+            ;;
+        backtest)
+            shift
+            run_backtest $*
+            ;;
+        hyperopt)
+            shift
+            run_hyperopt $*
             ;;
         *)
             help
@@ -90,6 +114,8 @@ function help() {
     echo "./start.sh container -i       Run docker container interactively"
     echo "./start.sh container -i -p    Run docker container interactively in Production"
     echo "./start.sh                    Run freqtrade dev locally"
+    echo "./start.sh backtest           Run freqtrade backtesting"
+    echo "./start.sh hyperopt           Run freqtrade hyper optimization"
 }
 
 case $1 in

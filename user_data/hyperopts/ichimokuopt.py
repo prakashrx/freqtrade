@@ -30,10 +30,10 @@ class IchimokuOpts(IHyperOpt):
             dataframe['high_low_' + str(i)] = (high + low) / 2
 
         #4H
-        # IchimokuOpts.ichimoku(dataframe, '', tenkan_sen_window=15, kijun_sen_window=27, senkou_span_offset=15, senkou_span_b_window=50)
-        # IchimokuOpts.ichimoku(dataframe, 'sell_', tenkan_sen_window=13, kijun_sen_window=15)
-        IchimokuOpts.ichimoku(dataframe, '', tenkan_sen_window=15, kijun_sen_window=29, senkou_span_offset=30, senkou_span_b_window=62)
-        IchimokuOpts.ichimoku(dataframe, 'sell_', tenkan_sen_window=13, kijun_sen_window=20)
+        IchimokuOpts.ichimoku(dataframe, '', tenkan_sen_window=15, kijun_sen_window=27, senkou_span_offset=15, senkou_span_b_window=50)
+        IchimokuOpts.ichimoku(dataframe, 'sell_', tenkan_sen_window=13, kijun_sen_window=15)
+        # IchimokuOpts.ichimoku(dataframe, '', tenkan_sen_window=15, kijun_sen_window=29, senkou_span_offset=30, senkou_span_b_window=62)
+        # IchimokuOpts.ichimoku(dataframe, 'sell_', tenkan_sen_window=13, kijun_sen_window=20)
 
         #1H
         #IchimokuOpts.ichimoku(dataframe, '', tenkan_sen_window=11, kijun_sen_window=18, senkou_span_offset=15, senkou_span_b_window=70)
@@ -84,9 +84,11 @@ class IchimokuOpts(IHyperOpt):
             dataframe.loc[
             (
                 (
-                    (qtpylib.crossed_above(tenkan_sen, kijun_sen)) &
+                    (tenkan_sen > kijun_sen) &
                     (dataframe['open'] > senkou_span_a) &
-                    (dataframe['open'] > senkou_span_b)
+                    (dataframe['open'] > senkou_span_b) &
+                    (dataframe['close'] > senkou_span_a) &
+                    (dataframe['close'] > senkou_span_b)
                 ) 
             ),
             'buy'] = 1
@@ -102,10 +104,10 @@ class IchimokuOpts(IHyperOpt):
         """
 
         return [
-            Integer(5, 15, name='tenkan_sen_window'),
-            Integer(15, 35, name='kijun_sen_window'),
-            Integer(15, 35, name='senkou_span_offset'),
-            Integer(45, 70, name='senkou_span_b_window')
+            Integer(5, 52, name='tenkan_sen_window'),
+            Integer(5, 52, name='kijun_sen_window'),
+            Integer(5, 52, name='senkou_span_offset'),
+            Integer(5, 70, name='senkou_span_b_window')
         ]
 
     @staticmethod
@@ -136,8 +138,8 @@ class IchimokuOpts(IHyperOpt):
         Define your Hyperopt space for searching sell strategy parameters
         """
         return [
-                Integer(5, 15, name='sell_tenkan_sen_window'),
-                Integer(15, 35, name='sell_kijun_sen_window')
+                Integer(5, 52, name='sell_tenkan_sen_window'),
+                Integer(5, 52, name='sell_kijun_sen_window')
                ]
 
     @staticmethod
@@ -168,9 +170,9 @@ class IchimokuOpts(IHyperOpt):
         Values to search for each ROI steps
         """
         return [
-            Integer(10, 120, name='roi_t1'),
-            Integer(10, 60, name='roi_t2'),
-            Integer(10, 40, name='roi_t3'),
+            Integer(10, 500, name='roi_t1'),
+            Integer(300, 1500, name='roi_t2'),
+            Integer(1000, 5000, name='roi_t3'),
             Real(0.01, 0.04, name='roi_p1'),
             Real(0.01, 0.07, name='roi_p2'),
             Real(0.01, 0.20, name='roi_p3'),
