@@ -27,7 +27,7 @@ function run_container() {
         docker run $args \
                 -v /etc/localtime:/etc/localtime:ro \
                 -v $(pwd)/config.prod.json:/freqtrade/config.json \
-                -v $(pwd)/user_data/trades/prod/tradesv3.sqlite:/freqtrade/user_data/prod/tradesv3.sqlite \
+                -v $(pwd)/user_data/trades/prod/tradesv3.sqlite:/freqtrade/user_data/trades/prod/tradesv3.sqlite \
                 -v $(pwd)/user_data/strategies:/freqtrade/user_data/strategies \
                 --name freqtrade \
                 --restart unless-stopped \
