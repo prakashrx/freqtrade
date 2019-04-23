@@ -6,12 +6,15 @@
     "ticker_interval" : "4h",
     "dry_run": true,
     "db_url": "sqlite:///user_data/trades/dryrun/tradesv3.dryrun.sqlite",
-    "trailing_stop": false,
-    "trailing_stop_positive":  0.01,
-    "trailing_stop_positive_offset":  0.05,
+    "trailing_stop": true,
+    "trailing_stop_positive":  0.001,
+    "trailing_stop_positive_offset":  0.01,
     "trailing_only_offset_is_reached": true,
-    "minimal_roi" : {
-        "0" : 100
+    "minimal_roi" : {   
+        "0": 0.2569411334254924,
+        "4997": 0.08595982817255583,
+        "6480": 0.01728199275830987,
+        "6974": 0
     },
     "order_types" : {
         "buy": "limit",
