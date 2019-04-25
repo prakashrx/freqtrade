@@ -159,8 +159,16 @@ class Hyperopt(Backtesting):
         sortino_ratio = (avg_return/std)
         #print(f'sortino_ratio: {sortino_ratio}\n')
 
-        sortino_ratio = -sortino_ratio
-        return sortino_ratio
+        avg_profit = (total_profit[total_profit > 0]).mean() 
+        avg_loss = (total_profit[total_profit < 0]).mean()
+        win_rate = total_profit[total_profit > 0].count()/total_profit.count()
+        loss_rate =1 - win_rate
+        risk_reward_ratio = avg_profit/(-avg_loss)
+        expectancy_ratio = (risk_reward_ratio * win_rate) - loss_rate
+
+        #loss = -sortino_ratio -(expectancy_ratio * 100) + (loss_rate * 100)
+        loss = -sortino_ratio 
+        return (loss, win_rate, sortino_ratio, expectancy_ratio)
 
     def calculate_loss_shapre_ratio(self, total_profit: list, trade_count: int, trade_duration: float) -> float:
         """
@@ -257,8 +265,10 @@ class Hyperopt(Backtesting):
                 'result': result_explanation,
             }
 
-        loss = self.calculate_loss(total_profit, trade_count, trade_duration)
-
+        loss, win_rate, sortino_ratio, expectancy_ratio = self.calculate_loss(total_profit, trade_count, trade_duration)
+        result_explanation = result_explanation + (f'Win Rate: {win_rate * 100:.2f} '
+                                                   f'Sortino Ratio: {sortino_ratio:.4f}. '
+                                                   f'Expectancy Ratio: {expectancy_ratio:.4f}.')
         return {
             'loss': loss,
             'params': params,
@@ -278,7 +288,7 @@ class Hyperopt(Backtesting):
 
         return (f'{trades:6d} trades. Avg profit {avg_profit: 5.2f}%. '
                 f'Total profit {total_profit: 11.8f} {stake_cur} '
-                f'({profit:.4f}Σ%). Avg duration {duration:5.1f} mins.')
+                f'({profit:.4f}Σ%). Avg duration {duration:5.1f} mins. ')
 
     def get_optimizer(self, cpu_count) -> Optimizer:
         return Optimizer(

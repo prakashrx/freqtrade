@@ -62,7 +62,19 @@ function run_backtest() {
 function run_hyperopt() {
     config="config.json"
     optimizer="IchimokuOpts"
-    for i in {1..10}; do freqtrade -c $config hyperopt --customhyperopt $optimizer -e 1000 $*; done
+
+    n=$1
+    shift
+
+    for i in {1..n}; do freqtrade -c $config hyperopt --customhyperopt $optimizer -e 1000 $*; done
+}
+
+
+function download_data() {
+
+    days=180
+    timeframe="5m"
+    python3 scripts/download_backtest_data.py --exchange binance --days $days --timeframes $timeframe
 }
 
 function clean() {
@@ -119,6 +131,10 @@ function run() {
             shift
             run_hyperopt $*
             ;;
+        download)
+            shift
+            download_data $*
+            ;;
         clean)
             shift
             clean $*
@@ -148,16 +164,17 @@ function build() {
 
 function help() {
     echo "usage:"
-    echo "./start.sh build              Build freqtrade docker image"
-    echo "./start.sh container          Run docker container"
-    echo "./start.sh container -p       Run docker container in Production"
-    echo "./start.sh container -i       Run docker container interactively"
-    echo "./start.sh container -i -p    Run docker container interactively in Production"
-    echo "./start.sh                    Run freqtrade dev locally"
-    echo "./start.sh backtest           Run freqtrade backtesting"
-    echo "./start.sh hyperopt           Run freqtrade hyper optimization"
-    echo "./start.sh clean              Clean up workspace. Deletes dryrun.sqlite, hyperopt, plotting etc"
-    echo "./start.sh clean -p           Clean up workspace. Same as clean. Also cleans prod tradesv3.sqlite"
+    echo "./start.sh build                      Build freqtrade docker image"
+    echo "./start.sh container                  Run docker container"
+    echo "./start.sh container -p               Run docker container in Production"
+    echo "./start.sh container -i               Run docker container interactively"
+    echo "./start.sh container -i -p            Run docker container interactively in Production"
+    echo "./start.sh                            Run freqtrade dev locally"
+    echo "./start.sh backtest                   Run freqtrade backtesting"
+    echo "./start.sh hyperopt N                 Run freqtrade hyper optimization N times"
+    echo "./start.sh download [-d 180] [-t 4h]  Download data for given timeframe"
+    echo "./start.sh clean                      Clean up workspace. Deletes dryrun.sqlite, hyperopt, plotting etc"
+    echo "./start.sh clean -p                   Clean up workspace. Same as clean. Also cleans prod tradesv3.sqlite"
 }
 
 case $1 in

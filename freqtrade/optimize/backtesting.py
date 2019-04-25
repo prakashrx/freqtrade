@@ -124,16 +124,18 @@ class Backtesting(object):
             return (avg_return/profits_adj[profits_adj < 0].std()) * np.sqrt(365)
 
         def get_max_drawdown():
-            results['portfolio_percentage'] = profits_adj*100
-            daily = results.resample('D', on='open_time').sum()
+            if not results.empty:
+                results['portfolio_percentage'] = profits_adj*100
+                daily = results.resample('D', on='open_time').sum()
 
-            daily['cumulative'] = (daily['portfolio_percentage']).cumsum().round(4)
-            daily['high'] = daily['cumulative'].cummax()
-            ax = daily['cumulative'].plot(title="Drawdown %")
-            ax.set_ylabel('percentage')
-            plt.show()
-            return (daily['cumulative'] - daily['high']).min()
-            
+                daily['cumulative'] = (daily['portfolio_percentage']).cumsum().round(4)
+                daily['high'] = daily['cumulative'].cummax()
+                ax = daily['cumulative'].plot(title="Drawdown %")
+                ax.set_ylabel('percentage')
+                plt.show()
+                return (daily['cumulative'] - daily['high']).min()
+            else:
+                return 0
 
         tabular_data = []
         headers = ['Metric', 'Value']
