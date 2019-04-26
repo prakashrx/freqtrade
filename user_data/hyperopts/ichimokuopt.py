@@ -9,6 +9,8 @@ from skopt.space import Categorical, Dimension, Integer, Real
 
 import freqtrade.vendor.qtpylib.indicators as qtpylib
 from freqtrade.optimize.hyperopt_interface import IHyperOpt
+from freqtrade.strategy.util import resample_to_interval, resampled_merge
+import freqtrade.indicators as indicators
 
 class_name = 'IchimokuOpts'
 
@@ -22,77 +24,56 @@ class IchimokuOpts(IHyperOpt):
     @staticmethod
     def populate_indicators(dataframe: DataFrame, metadata: dict) -> DataFrame:
 
-        dataframe['rsi'] = ta.RSI(dataframe)
         
         for i in range(3, 81):
             high = dataframe['high'].rolling(window=i).max()
             low = dataframe['low'].rolling(window=i).min()
             dataframe['high_low_' + str(i)] = (high + low) / 2
 
-        #4H
-        IchimokuOpts.ichimoku(dataframe, '', tenkan_sen_window=15, kijun_sen_window=27, senkou_span_offset=15, senkou_span_b_window=50)
-        IchimokuOpts.ichimoku(dataframe, 'sell_', tenkan_sen_window=13, kijun_sen_window=15)
-        # IchimokuOpts.ichimoku(dataframe, '', tenkan_sen_window=15, kijun_sen_window=29, senkou_span_offset=30, senkou_span_b_window=62)
-        # IchimokuOpts.ichimoku(dataframe, 'sell_', tenkan_sen_window=13, kijun_sen_window=20)
+        
+        #Default time interval
+        #indicators - Macd
+        macd = ta.MACD(dataframe, fastperiod=14, slowperiod=27, signalperiod=9)
+        dataframe['macd'] = macd['macd']
+        dataframe['macdsignal'] = macd['macdsignal']
+        
+        #Daily interval
+        #indicators - Macd
+        dataframe_1d =  resample_to_interval(dataframe, '1d')
+        macd = ta.MACD(dataframe_1d, fastperiod=14, slowperiod=27, signalperiod=9)
+        dataframe_1d['macd_1d'] = macd['macd']
+        dataframe_1d['macdsignal_1d'] = macd['macdsignal']
+        
+        #Daily interval
+        #indicators - Ichimoku cloud, Macd
+        dataframe_4h =  resample_to_interval(dataframe, '4h')
+        ichimoku = indicators.ichimoku(dataframe_4h, tenkan_sen_window=15, kijun_sen_window=27, senkou_span_offset=15, senkou_span_b_window=50)
+        dataframe_4h['tenkan_sen_4h'] = ichimoku['tenkan_sen']
+        dataframe_4h['kijun_sen_4h'] = ichimoku['kijun_sen']
+        dataframe_4h['senkou_span_a_4h'] = ichimoku['senkou_span_a']
+        dataframe_4h['senkou_span_b_4h'] = ichimoku['senkou_span_b']
 
-        #1H
-        #IchimokuOpts.ichimoku(dataframe, '', tenkan_sen_window=11, kijun_sen_window=18, senkou_span_offset=15, senkou_span_b_window=70)
-        #IchimokuOpts.ichimoku(dataframe, 'sell_', tenkan_sen_window=6, kijun_sen_window=23)
+        macd = ta.MACD(dataframe_4h, fastperiod=14, slowperiod=27, signalperiod=9)
+        dataframe_4h['macd_4h'] = macd['macd']
+        dataframe_4h['macdsignal_4h'] = macd['macdsignal']
+
+        dataframe = resampled_merge(dataframe, dataframe_4h)
+        dataframe = resampled_merge(dataframe, dataframe_1d)
+
         return dataframe
 
-    @staticmethod
-    def ichimoku(df: DataFrame, prefix='', tenkan_sen_window=9, kijun_sen_window=26, senkou_span_offset=26, senkou_span_b_window=52, chikou_span_offset=26) -> DataFrame:
-        
-        high = df['high'].rolling(window=tenkan_sen_window).max()
-        low = df['low'].rolling(window=tenkan_sen_window).min()
-        df[prefix + 'tenkan_sen'] = (high + low) / 2
-
-        # Kijun-sen (Base Line): (26-period high + 26-period low)/2))
-        high = df['high'].rolling(window=kijun_sen_window).max()
-        low = df['low'].rolling(window=kijun_sen_window).min()
-        df[prefix + 'kijun_sen'] = (high + low) /2
-
-        # Senkou Span A (Leading Span A): (Conversion Line + Base Line)/2))
-        #df['senkou_span_a-26'] = ((df['tenkan_sen'] + df['kijun_sen']) / 2)
-        df[prefix + 'senkou_span_a'] = ((df['tenkan_sen'] + df['kijun_sen']) / 2).shift(senkou_span_offset)
-
-        # Senkou Span B (Leading Span B): (52-period high + 52-period low)/2))
-        high = df['high'].rolling(window=senkou_span_b_window).max()
-        low = df['low'].rolling(window=senkou_span_b_window).min()
-        #df['senkou_span_b-26'] = ((high_52 + low_52) /2)
-        df[prefix + 'senkou_span_b'] = ((high + low) /2).shift(senkou_span_offset)
-
-        # The most current closing price plotted 26 time periods behind (optional)
-        df[prefix + 'chikou_span'] = df['close'].shift(-chikou_span_offset) # 26 according to investopedia
-
-        return df
 
     @staticmethod
     def buy_strategy_generator(params: Dict[str, Any]) -> Callable:
-        """
-        Define the buy strategy parameters to be used by hyperopt
-        """
+
         def populate_buy_trend(dataframe: DataFrame, metadata: dict) -> DataFrame:
-            """
-            Buy strategy Hyperopt will build and use
-            """
-            tenkan_sen = dataframe['high_low_' + str(params['tenkan_sen_window'])]
-            kijun_sen = dataframe['high_low_' + str(params['kijun_sen_window'])]
-            senkou_span_a = ((tenkan_sen + kijun_sen)/2).shift(params['senkou_span_offset'])
-            senkou_span_b = dataframe['high_low_' + str(params['senkou_span_b_window'])].shift(params['senkou_span_offset'])
+            
+            # tenkan_sen = dataframe['high_low_' + str(params['tenkan_sen_window'])]
+            # kijun_sen = dataframe['high_low_' + str(params['kijun_sen_window'])]
+            # senkou_span_a = ((tenkan_sen + kijun_sen)/2).shift(params['senkou_span_offset'])
+            # senkou_span_b = dataframe['high_low_' + str(params['senkou_span_b_window'])].shift(params['senkou_span_offset'])
 
-            dataframe.loc[
-            (
-                (
-                    (tenkan_sen > kijun_sen) &
-                    (dataframe['open'] > senkou_span_a) &
-                    (dataframe['open'] > senkou_span_b) &
-                    (dataframe['close'] > senkou_span_a) &
-                    (dataframe['close'] > senkou_span_b)
-                ) 
-            ),
-            'buy'] = 1
-
+            dataframe['buy'] = 0
             return dataframe
 
         return populate_buy_trend
@@ -104,30 +85,34 @@ class IchimokuOpts(IHyperOpt):
         """
 
         return [
-            Integer(5, 52, name='tenkan_sen_window'),
-            Integer(5, 52, name='kijun_sen_window'),
-            Integer(5, 52, name='senkou_span_offset'),
-            Integer(5, 70, name='senkou_span_b_window')
+            # Integer(5, 52, name='tenkan_sen_window'),
+            # Integer(5, 52, name='kijun_sen_window'),
+            # Integer(5, 52, name='senkou_span_offset'),
+            # Integer(5, 70, name='senkou_span_b_window')
         ]
 
     @staticmethod
     def sell_strategy_generator(params: Dict[str, Any]) -> Callable:
-        """
-        Define the sell strategy parameters to be used by hyperopt
-        """
+        
         def populate_sell_trend(dataframe: DataFrame, metadata: dict) -> DataFrame:
-            """
-            Sell strategy Hyperopt will build and use
-            """
-            
-            tenkan_sen = dataframe['high_low_' + str(params['sell_tenkan_sen_window'])]
-            kijun_sen = dataframe['high_low_' + str(params['sell_kijun_sen_window'])]
+
+            if(params['macd_1d_fast'] >= params['macd_1d_slow']):
+                dataframe['sell'] = 0
+                return dataframe
+
+            dataframe_1d =  resample_to_interval(dataframe, '1d')
+            macd = ta.MACD(dataframe_1d, fastperiod=params['macd_1d_fast'], slowperiod=params['macd_1d_slow'], signalperiod=params['macd_1d_signal'])
+            dataframe_1d['macd_1d_generated'] = macd['macd']
+            dataframe_1d['macdsignal_1d_generated'] = macd['macdsignal']
+            dataframe = resampled_merge(dataframe, dataframe_1d)
 
             dataframe.loc[
             (
-                qtpylib.crossed_below(tenkan_sen, kijun_sen)
+                #qtpylib.crossed_below(dataframe['macd_4h'], dataframe['macdsignal_4h']) |   #in bear market this performs well
+                qtpylib.crossed_below(dataframe['macd_1d_generated'], dataframe['macdsignal_1d_generated'])
             ),
             'sell'] = 1
+
             return dataframe
 
         return populate_sell_trend
@@ -138,8 +123,9 @@ class IchimokuOpts(IHyperOpt):
         Define your Hyperopt space for searching sell strategy parameters
         """
         return [
-                Integer(5, 52, name='sell_tenkan_sen_window'),
-                Integer(5, 52, name='sell_kijun_sen_window')
+                Integer(5, 20, name='macd_1d_fast'),
+                Integer(20, 52, name='macd_1d_slow'),
+                Integer(5, 30, name='macd_1d_signal')
                ]
 
     @staticmethod
@@ -179,21 +165,18 @@ class IchimokuOpts(IHyperOpt):
         ]
 
     def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """
-        Based on TA indicators. Should be a copy of from strategy
-        must align to populate_indicators in this file
-        Only used when --spaces does not include buy
-        """
 
         dataframe.loc[
             (
                 (
-                    #(qtpylib.crossed_above(dataframe['tenkan_sen'], dataframe['kijun_sen'])) &
-                    (dataframe['tenkan_sen'] > dataframe['kijun_sen']) &
-                    (dataframe['open'] > dataframe['senkou_span_a']) &
-                    (dataframe['open'] > dataframe['senkou_span_b']) &
-                    (dataframe['close'] > dataframe['senkou_span_a']) &
-                    (dataframe['close'] > dataframe['senkou_span_b'])
+                    (dataframe['macd'] > dataframe['macdsignal']) &
+                    #(dataframe['macd_4h'] > dataframe['macdsignal_4h']) &
+                    (dataframe['macd_1d'] > dataframe['macdsignal_1d']) &
+                    (dataframe['tenkan_sen_4h'] > dataframe['kijun_sen_4h']) &
+                    (dataframe['open'] > dataframe['senkou_span_a_4h']) &
+                    (dataframe['open'] > dataframe['senkou_span_b_4h']) &
+                    (dataframe['close'] > dataframe['senkou_span_a_4h']) &
+                    (dataframe['close'] > dataframe['senkou_span_b_4h'])
                 )
             ),
             'buy'] = 1
@@ -201,15 +184,10 @@ class IchimokuOpts(IHyperOpt):
         return dataframe
 
     def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """
-        Based on TA indicators. Should be a copy of from strategy
-        must align to populate_indicators in this file
-        Only used when --spaces does not include sell
-        """
-
         dataframe.loc[
             (
-                qtpylib.crossed_below(dataframe['sell_tenkan_sen'], dataframe['sell_kijun_sen'])
+                #qtpylib.crossed_below(dataframe['macd_4h'], dataframe['macdsignal_4h']) |   #in bear market this performs well
+                qtpylib.crossed_below(dataframe['macd_1d'], dataframe['macdsignal_1d'])
             ),
             'sell'] = 1
         return dataframe

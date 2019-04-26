@@ -73,7 +73,7 @@ function run_hyperopt() {
 function download_data() {
 
     days=180
-    timeframe="5m"
+    timeframe="15m"
     python3 scripts/download_backtest_data.py --exchange binance --days $days --timeframes $timeframe
 }
 
