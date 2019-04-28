@@ -65,7 +65,7 @@ class Ichimoku(IStrategy):
         dataframe_1d['sar_1d'] = ta.SAR(dataframe_1d, acceleration=0.2, maximum=1)
         dataframe_1d['close_1d'] = dataframe_1d['close']
 
-        #Daily interval
+        #4h interval
         #indicators - Ichimoku cloud, Macd
         dataframe_4h =  resample_to_interval(dataframe, '4h')
         ichimoku = indicators.ichimoku(dataframe_4h, tenkan_sen_window=15, kijun_sen_window=27, senkou_span_offset=15, senkou_span_b_window=50)
@@ -112,13 +112,13 @@ class Ichimoku(IStrategy):
                 (
                     (dataframe['macd'] > dataframe['macdsignal']) &
                     (dataframe['macd_4h'] > dataframe['macdsignal_4h']) &
-                    (dataframe['sar_1d'] < dataframe['close']) &            # bull market - need not turn off.
-                    (dataframe['macd_1d'] > dataframe['macdsignal_1d'])
-                    # (dataframe['tenkan_sen_4h'] > dataframe['kijun_sen_4h'])
-                    # (dataframe['open'] > dataframe['senkou_span_a_4h']) &
-                    # (dataframe['open'] > dataframe['senkou_span_b_4h']) &
-                    # (dataframe['close'] > dataframe['senkou_span_a_4h']) &
-                    # (dataframe['close'] > dataframe['senkou_span_b_4h'])
+                    (dataframe['sar_1d'] < dataframe['open']) &            # bull market - need not turn off.
+                    (dataframe['macd_1d'] > dataframe['macdsignal_1d']) &
+                    #(dataframe['tenkan_sen_4h'] > dataframe['kijun_sen_4h']) &
+                    (dataframe['open'] > dataframe['senkou_span_a_4h']) &
+                    (dataframe['open'] > dataframe['senkou_span_b_4h']) &
+                    (dataframe['close'] > dataframe['senkou_span_a_4h']) &
+                    (dataframe['close'] > dataframe['senkou_span_b_4h'])
                 )
             ),
             'buy'] = 1
@@ -130,7 +130,7 @@ class Ichimoku(IStrategy):
         dataframe.loc[
             (
                 (dataframe['macd_1d'] < dataframe['macdsignal_1d'])
-                | (dataframe['sar_1d'] > dataframe['close'])  # bull market - turn off.  Also trailing stop false
+                | (dataframe['sar_1d'] > dataframe['open']) 
             ),
             'sell'] = 1
         return dataframe
