@@ -17,6 +17,8 @@ function run_container() {
         esac
     done
     
+    mkdir -p user_data/data/history
+
     if [ $prod ]; then
         echo "***Starting freqtrade container(PROD)***"
         docker stop freqtrade > /dev/null
@@ -28,6 +30,7 @@ function run_container() {
                 -v /etc/localtime:/etc/localtime:ro \
                 -v $(pwd)/config.prod.json:/freqtrade/config.json \
                 -v $(pwd)/user_data/trades/prod/tradesv3.sqlite:/freqtrade/user_data/trades/prod/tradesv3.sqlite \
+                -v $(pwd)/user_data/data/history:/freqtrade/user_data/data/history \
                 -v $(pwd)/user_data/strategies:/freqtrade/user_data/strategies \
                 --name freqtrade \
                 --restart unless-stopped \
@@ -39,11 +42,11 @@ function run_container() {
         docker rm freqtrade > /dev/null
 
         touch user_data/trades/dryrun/tradesv3.dryrun.sqlite
-
         docker run $args \
             -v /etc/localtime:/etc/localtime:ro \
             -v $(pwd)/config.json:/freqtrade/config.json \
             -v $(pwd)/user_data/trades/dryrun/tradesv3.dryrun.sqlite:/freqtrade/user_data/trades/dryrun/tradesv3.dryrun.sqlite \
+            -v $(pwd)/user_data/data/history:/freqtrade/user_data/data/history \
             -v $(pwd)/user_data/strategies:/freqtrade/user_data/strategies \
             --name freqtrade \
             --restart unless-stopped \
@@ -62,7 +65,19 @@ function run_backtest() {
 function run_hyperopt() {
     config="config.json"
     optimizer="IchimokuOpts"
-    for i in {1..10}; do freqtrade -c $config hyperopt --customhyperopt $optimizer -e 1000 $*; done
+
+    n=$1
+    shift
+
+    for i in {1..n}; do freqtrade -c $config hyperopt --customhyperopt $optimizer -e 1000 $*; done
+}
+
+
+function download_data() {
+
+    days=180
+    timeframe="15m"
+    python3 scripts/download_backtest_data.py --exchange binance --days $days --timeframes $timeframe
 }
 
 function clean() {
@@ -119,6 +134,10 @@ function run() {
             shift
             run_hyperopt $*
             ;;
+        download)
+            shift
+            download_data $*
+            ;;
         clean)
             shift
             clean $*
@@ -148,16 +167,17 @@ function build() {
 
 function help() {
     echo "usage:"
-    echo "./start.sh build              Build freqtrade docker image"
-    echo "./start.sh container          Run docker container"
-    echo "./start.sh container -p       Run docker container in Production"
-    echo "./start.sh container -i       Run docker container interactively"
-    echo "./start.sh container -i -p    Run docker container interactively in Production"
-    echo "./start.sh                    Run freqtrade dev locally"
-    echo "./start.sh backtest           Run freqtrade backtesting"
-    echo "./start.sh hyperopt           Run freqtrade hyper optimization"
-    echo "./start.sh clean              Clean up workspace. Deletes dryrun.sqlite, hyperopt, plotting etc"
-    echo "./start.sh clean -p           Clean up workspace. Same as clean. Also cleans prod tradesv3.sqlite"
+    echo "./start.sh build                      Build freqtrade docker image"
+    echo "./start.sh container                  Run docker container"
+    echo "./start.sh container -p               Run docker container in Production"
+    echo "./start.sh container -i               Run docker container interactively"
+    echo "./start.sh container -i -p            Run docker container interactively in Production"
+    echo "./start.sh                            Run freqtrade dev locally"
+    echo "./start.sh backtest                   Run freqtrade backtesting"
+    echo "./start.sh hyperopt N                 Run freqtrade hyper optimization N times"
+    echo "./start.sh download [-d 180] [-t 4h]  Download data for given timeframe"
+    echo "./start.sh clean                      Clean up workspace. Deletes dryrun.sqlite, hyperopt, plotting etc"
+    echo "./start.sh clean -p                   Clean up workspace. Same as clean. Also cleans prod tradesv3.sqlite"
 }
 
 case $1 in
