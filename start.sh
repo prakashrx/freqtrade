@@ -17,6 +17,8 @@ function run_container() {
         esac
     done
     
+    mkdir -p user_data/data/history
+
     if [ $prod ]; then
         echo "***Starting freqtrade container(PROD)***"
         docker stop freqtrade > /dev/null
@@ -28,6 +30,7 @@ function run_container() {
                 -v /etc/localtime:/etc/localtime:ro \
                 -v $(pwd)/config.prod.json:/freqtrade/config.json \
                 -v $(pwd)/user_data/trades/prod/tradesv3.sqlite:/freqtrade/user_data/trades/prod/tradesv3.sqlite \
+                -v $(pwd)/user_data/data/history:/freqtrade/user_data/data/history \
                 -v $(pwd)/user_data/strategies:/freqtrade/user_data/strategies \
                 --name freqtrade \
                 --restart unless-stopped \
@@ -39,11 +42,11 @@ function run_container() {
         docker rm freqtrade > /dev/null
 
         touch user_data/trades/dryrun/tradesv3.dryrun.sqlite
-
         docker run $args \
             -v /etc/localtime:/etc/localtime:ro \
             -v $(pwd)/config.json:/freqtrade/config.json \
             -v $(pwd)/user_data/trades/dryrun/tradesv3.dryrun.sqlite:/freqtrade/user_data/trades/dryrun/tradesv3.dryrun.sqlite \
+            -v $(pwd)/user_data/data/history:/freqtrade/user_data/data/history \
             -v $(pwd)/user_data/strategies:/freqtrade/user_data/strategies \
             --name freqtrade \
             --restart unless-stopped \

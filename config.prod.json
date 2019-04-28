@@ -3,7 +3,7 @@
     "stake_currency": "USDT",
     "stake_amount": 100,
     "fiat_display_currency": "USD",
-    "ticker_interval" : "4h",
+    "ticker_interval" : "15m",
     "dry_run": false,
     "db_url": "sqlite:///user_data/trades/prod/tradesv3.sqlite",
     "trailing_stop": true,
@@ -11,18 +11,15 @@
     "trailing_stop_positive_offset":  0.01,
     "trailing_only_offset_is_reached": true,
     "minimal_roi" : {   
-        "0": 0.2569411334254924,
-        "4997": 0.08595982817255583,
-        "6480": 0.01728199275830987,
-        "6974": 0
+        "0": 100
     },
     "order_types" : {
         "buy": "limit",
         "sell": "limit",
         "stoploss": "market",
-        "stoploss_on_exchange": true
+        "stoploss_on_exchange": false
     },
-    "stoploss" : -0.076,
+    "stoploss" : -10,
     "order_time_in_force" : {
         "buy": "gtc",
         "sell": "gtc"
@@ -92,6 +89,7 @@
         "pair_blacklist": [
             "BNB/USDT",
             "USDS/USDT",
+            "USDC/USDT",
             "TUSD/USDT",
             "PAX/USDT"
         ]

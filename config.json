@@ -84,11 +84,12 @@
             "ZEC/USDT",
             "ZRX/USDT",
             "DASH/USDT",
-            "THETA/USDT"    
+            "THETA/USDT" 
         ],
         "pair_blacklist": [
             "BNB/USDT",
             "USDS/USDT",
+            "USDC/USDT",
             "TUSD/USDT",
             "PAX/USDT"
         ]
@@ -114,7 +115,7 @@
         "remove_pumps": false
     },
     "telegram": {
-        "enabled": false,
+        "enabled": true,
         "token": "609754487:AAH721XtKfPhXOUes-0DgDQB1aGpS2rmhRo",
         "chat_id": "699024426"
     },

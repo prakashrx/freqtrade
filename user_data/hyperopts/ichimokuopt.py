@@ -15,35 +15,42 @@ import freqtrade.indicators as indicators
 class_name = 'IchimokuOpts'
 
 
+
 class IchimokuOpts(IHyperOpt):
     """
     Default hyperopt provided by freqtrade bot.
     You can override it with your own hyperopt
     """
 
+    dataframes = {}
+
     @staticmethod
     def populate_indicators(dataframe: DataFrame, metadata: dict) -> DataFrame:
 
-        
         for i in range(3, 81):
             high = dataframe['high'].rolling(window=i).max()
             low = dataframe['low'].rolling(window=i).min()
             dataframe['high_low_' + str(i)] = (high + low) / 2
 
-        
         #Default time interval
-        #indicators - Macd
+        #indicators - Hikenashi Macd
         macd = ta.MACD(dataframe, fastperiod=14, slowperiod=27, signalperiod=9)
         dataframe['macd'] = macd['macd']
         dataframe['macdsignal'] = macd['macdsignal']
-        
+        dataframe['macdhist'] = macd['macdhist']
+
         #Daily interval
         #indicators - Macd
         dataframe_1d =  resample_to_interval(dataframe, '1d')
-        macd = ta.MACD(dataframe_1d, fastperiod=14, slowperiod=27, signalperiod=9)
+        IchimokuOpts.dataframes[metadata['pair']] = dataframe_1d
+
+        macd = ta.MACD(dataframe_1d, fastperiod=14, slowperiod=27, signalperiod=15)
         dataframe_1d['macd_1d'] = macd['macd']
         dataframe_1d['macdsignal_1d'] = macd['macdsignal']
-        
+        dataframe_1d['macdhist_1d'] = macd['macdhist']
+        dataframe_1d['macdhist_1d'] = macd['macdhist']
+
+
         #Daily interval
         #indicators - Ichimoku cloud, Macd
         dataframe_4h =  resample_to_interval(dataframe, '4h')
@@ -52,7 +59,6 @@ class IchimokuOpts(IHyperOpt):
         dataframe_4h['kijun_sen_4h'] = ichimoku['kijun_sen']
         dataframe_4h['senkou_span_a_4h'] = ichimoku['senkou_span_a']
         dataframe_4h['senkou_span_b_4h'] = ichimoku['senkou_span_b']
-
         macd = ta.MACD(dataframe_4h, fastperiod=14, slowperiod=27, signalperiod=9)
         dataframe_4h['macd_4h'] = macd['macd']
         dataframe_4h['macdsignal_4h'] = macd['macdsignal']
@@ -61,7 +67,6 @@ class IchimokuOpts(IHyperOpt):
         dataframe = resampled_merge(dataframe, dataframe_1d)
 
         return dataframe
-
 
     @staticmethod
     def buy_strategy_generator(params: Dict[str, Any]) -> Callable:
@@ -93,25 +98,28 @@ class IchimokuOpts(IHyperOpt):
 
     @staticmethod
     def sell_strategy_generator(params: Dict[str, Any]) -> Callable:
-        
+
+        cache = {}
+
         def populate_sell_trend(dataframe: DataFrame, metadata: dict) -> DataFrame:
+
 
             if(params['macd_1d_fast'] >= params['macd_1d_slow']):
                 dataframe['sell'] = 0
                 return dataframe
 
-            dataframe_1d =  resample_to_interval(dataframe, '1d')
-            macd = ta.MACD(dataframe_1d, fastperiod=params['macd_1d_fast'], slowperiod=params['macd_1d_slow'], signalperiod=params['macd_1d_signal'])
-            dataframe_1d['macd_1d_generated'] = macd['macd']
-            dataframe_1d['macdsignal_1d_generated'] = macd['macdsignal']
-            dataframe = resampled_merge(dataframe, dataframe_1d)
+            key = f"macd_1d_{metadata['pair']}_{params['macd_1d_fast']}_{params['macd_1d_slow']}_{params['macd_1d_signal']}_sell"
+            dataframe_1d = IchimokuOpts.dataframes[metadata['pair']]
 
-            dataframe.loc[
-            (
-                #qtpylib.crossed_below(dataframe['macd_4h'], dataframe['macdsignal_4h']) |   #in bear market this performs well
-                qtpylib.crossed_below(dataframe['macd_1d_generated'], dataframe['macdsignal_1d_generated'])
-            ),
-            'sell'] = 1
+            if key not in cache:
+                macd = ta.MACD(dataframe_1d, fastperiod=params['macd_1d_fast'], slowperiod=params['macd_1d_slow'], signalperiod=params['macd_1d_signal'])
+                macd.loc[( macd['macd'] < macd['macdsignal'] ), 'sell'] = 1
+                cache[key] = macd['sell']
+            
+            dataframe_1d["sell_cache"] = cache[key]
+            df2 = resampled_merge(dataframe,dataframe_1d)
+            df2['sell'] = 0
+            dataframe['sell'] = df2["sell_cache"]
 
             return dataframe
 
@@ -166,6 +174,10 @@ class IchimokuOpts(IHyperOpt):
 
     def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
+        # if (dataframe['date'].max() - dataframe['date'].min()).days < 30:
+        #     dataframe['buy'] = 0
+        #     return dataframe
+
         dataframe.loc[
             (
                 (
@@ -180,14 +192,14 @@ class IchimokuOpts(IHyperOpt):
                 )
             ),
             'buy'] = 1
-
         return dataframe
 
     def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
                 #qtpylib.crossed_below(dataframe['macd_4h'], dataframe['macdsignal_4h']) |   #in bear market this performs well
-                qtpylib.crossed_below(dataframe['macd_1d'], dataframe['macdsignal_1d'])
+                (dataframe['macd_1d'] < dataframe['macdsignal_1d'])
+                #(dataframe['ha_close_1d'] < dataframe['ha_open_1d'].shift())
             ),
             'sell'] = 1
         return dataframe

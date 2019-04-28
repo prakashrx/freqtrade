@@ -4,7 +4,9 @@ import talib.abstract as ta
 import pandas as pd
 from pandas import DataFrame
 import arrow
+from pathlib import Path
 import freqtrade.vendor.qtpylib.indicators as qtpylib
+from freqtrade.arguments import TimeRange
 from freqtrade.indicator_helpers import fishers_inverse
 from freqtrade.strategy.interface import IStrategy
 from freqtrade.state import RunMode
@@ -19,17 +21,25 @@ class Ichimoku(IStrategy):
     cache = {}
 
     def get_extend_historical(self, pair: str, dataframe: DataFrame) -> DataFrame:
-        if self.dp and self.dp.runmode in (RunMode.LIVE, RunMode.DRY_RUN):
-            if pair not in self.cache:
-                logger.info(f"Downloading historical ohlc for pair: {pair})")
-                hist = self.dp._exchange.get_history(pair=pair, ticker_interval=self.ticker_interval,
-                                           since_ms=int(arrow.utcnow().shift(days=-60).float_timestamp) * 1000)
-                self.cache[pair] = parse_ticker_dataframe(hist,self.ticker_interval)
-                #self.cache[pair] = load_pair_history(pair, ticker_interval=self.ticker_interval,  )
 
-            hist_df = self.cache[pair]
-            min_date = dataframe['date'].min()
-            return pd.concat([ hist_df[hist_df['date'] < min_date] , dataframe ])
+        if hasattr(self, 'dp'):
+            if self.dp.runmode in (RunMode.LIVE, RunMode.DRY_RUN):
+                if pair not in self.cache:
+                    logger.info(f"Downloading historical ohlc for pair: {pair})")
+                    # hist = self.dp._exchange.get_history(pair=pair, ticker_interval=self.ticker_interval,
+                    #                         since_ms=int(arrow.utcnow().shift(days=-60).float_timestamp) * 1000)
+                    # self.cache[pair] = parse_ticker_dataframe(hist,self.ticker_interval)
+                    self.cache[pair] = load_pair_history(pair, 
+                                        ticker_interval=self.ticker_interval, 
+                                        datadir= Path(f"user_data/data/history"),
+                                        timerange=TimeRange(starttype ='date', startts=int(arrow.utcnow().shift(days=-60).float_timestamp)),
+                                        refresh_pairs=True,
+                                        exchange=self.dp._exchange)
+
+                hist_df = self.cache[pair]
+                min_date = dataframe['date'].min()
+                return pd.concat([ hist_df[hist_df['date'] < min_date] , dataframe ])
+
         return dataframe
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
@@ -38,18 +48,23 @@ class Ichimoku(IStrategy):
         dataframe = self.get_extend_historical(metadata['pair'], dataframe)
 
         #Default time interval
-        #indicators - Macd
+        #indicators - Hikenashi Macd
         macd = ta.MACD(dataframe, fastperiod=14, slowperiod=27, signalperiod=9)
         dataframe['macd'] = macd['macd']
         dataframe['macdsignal'] = macd['macdsignal']
-        
+        dataframe['macdhist'] = macd['macdhist']
+        dataframe['sar'] = ta.SAR(dataframe, acceleration=0.2, maximum=1)
+
         #Daily interval
         #indicators - Macd
         dataframe_1d =  resample_to_interval(dataframe, '1d')
         macd = ta.MACD(dataframe_1d, fastperiod=14, slowperiod=27, signalperiod=15)
         dataframe_1d['macd_1d'] = macd['macd']
         dataframe_1d['macdsignal_1d'] = macd['macdsignal']
-        
+        dataframe_1d['macdhist_1d'] = macd['macdhist']
+        dataframe_1d['sar_1d'] = ta.SAR(dataframe_1d, acceleration=0.2, maximum=1)
+        dataframe_1d['close_1d'] = dataframe_1d['close']
+
         #Daily interval
         #indicators - Ichimoku cloud, Macd
         dataframe_4h =  resample_to_interval(dataframe, '4h')
@@ -58,7 +73,6 @@ class Ichimoku(IStrategy):
         dataframe_4h['kijun_sen_4h'] = ichimoku['kijun_sen']
         dataframe_4h['senkou_span_a_4h'] = ichimoku['senkou_span_a']
         dataframe_4h['senkou_span_b_4h'] = ichimoku['senkou_span_b']
-
         macd = ta.MACD(dataframe_4h, fastperiod=14, slowperiod=27, signalperiod=9)
         dataframe_4h['macd_4h'] = macd['macd']
         dataframe_4h['macdsignal_4h'] = macd['macdsignal']
@@ -97,13 +111,14 @@ class Ichimoku(IStrategy):
             (
                 (
                     (dataframe['macd'] > dataframe['macdsignal']) &
-                    #(dataframe['macd_4h'] > dataframe['macdsignal_4h']) &
-                    (dataframe['macd_1d'] > dataframe['macdsignal_1d']) &
-                    (dataframe['tenkan_sen_4h'] > dataframe['kijun_sen_4h']) &
-                    (dataframe['open'] > dataframe['senkou_span_a_4h']) &
-                    (dataframe['open'] > dataframe['senkou_span_b_4h']) &
-                    (dataframe['close'] > dataframe['senkou_span_a_4h']) &
-                    (dataframe['close'] > dataframe['senkou_span_b_4h'])
+                    (dataframe['macd_4h'] > dataframe['macdsignal_4h']) &
+                    (dataframe['sar_1d'] < dataframe['close']) &            # bull market - need not turn off.
+                    (dataframe['macd_1d'] > dataframe['macdsignal_1d'])
+                    # (dataframe['tenkan_sen_4h'] > dataframe['kijun_sen_4h'])
+                    # (dataframe['open'] > dataframe['senkou_span_a_4h']) &
+                    # (dataframe['open'] > dataframe['senkou_span_b_4h']) &
+                    # (dataframe['close'] > dataframe['senkou_span_a_4h']) &
+                    # (dataframe['close'] > dataframe['senkou_span_b_4h'])
                 )
             ),
             'buy'] = 1
@@ -114,8 +129,8 @@ class Ichimoku(IStrategy):
         
         dataframe.loc[
             (
-                #qtpylib.crossed_below(dataframe['macd_4h'], dataframe['macdsignal_4h']) |   #in bear market this performs well
-                qtpylib.crossed_below(dataframe['macd_1d'], dataframe['macdsignal_1d'])
+                (dataframe['macd_1d'] < dataframe['macdsignal_1d'])
+                | (dataframe['sar_1d'] > dataframe['close'])  # bull market - turn off.  Also trailing stop false
             ),
             'sell'] = 1
         return dataframe
