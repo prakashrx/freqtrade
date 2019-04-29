@@ -4,8 +4,8 @@
     "stake_amount": 0.01,
     "fiat_display_currency": "USD",
     "ticker_interval" : "15m",
-    "dry_run": true,
-    "db_url": "sqlite:///user_data/trades/dryrun/tradesv3.dryrun.btc.sqlite",
+    "dry_run": false,
+    "db_url": "sqlite:///user_data/trades/prod/tradesv3.btc.sqlite",
     "trailing_stop": true,
     "trailing_stop_positive":  0.001,
     "trailing_stop_positive_offset":  0.01,
@@ -51,8 +51,8 @@
     },
     "exchange": {
         "name": "binance",
-        "key": "",
-        "secret": "",
+        "key": "i6AV90UogbgKhZdaXCbz6I0nB6JcaEZXmAd5CJJXw6sloHdbCV4X4jDGxnDo14Kg",
+        "secret": "2SSc9UC41mTorArlRpMCk1Uh1Vwdgxv7g1AKV6hmUf6hXFn3l5A1hi4uptVDJULy",
         "ccxt_config": {"enableRateLimit": true},
         "ccxt_async_config": {
             "enableRateLimit": true,
@@ -138,7 +138,7 @@
     },
     "telegram": {
         "enabled": true,
-        "token": "609754487:AAH721XtKfPhXOUes-0DgDQB1aGpS2rmhRo",
+        "token": "812864675:AAGvxtJ6wUXbHlS0nkSwNblOTFVPl41s2v8",
         "chat_id": "699024426"
     },
     "initial_state": "running",

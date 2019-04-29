@@ -19,6 +19,7 @@ logger = logging.getLogger("IchimokuStrategy")
 class Ichimoku(IStrategy):
 
     cache = {}
+    min_days = 30
 
     def get_extend_historical(self, pair: str, dataframe: DataFrame) -> DataFrame:
 
@@ -44,8 +45,10 @@ class Ichimoku(IStrategy):
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         
-
+        
         dataframe = self.get_extend_historical(metadata['pair'], dataframe)
+        if (dataframe['date'].max() - dataframe['date'].min()).days < self.min_days:
+            return dataframe
 
         #Default time interval
         #indicators - Hikenashi Macd
@@ -84,7 +87,7 @@ class Ichimoku(IStrategy):
 
     def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
-        if (dataframe['date'].max() - dataframe['date'].min()).days < 30:
+        if (dataframe['date'].max() - dataframe['date'].min()).days < self.min_days:
             dataframe['buy'] = 0
             return dataframe
 
@@ -127,6 +130,10 @@ class Ichimoku(IStrategy):
 
     def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         
+        if (dataframe['date'].max() - dataframe['date'].min()).days < self.min_days:
+            dataframe['sell'] = 0
+            return dataframe
+
         dataframe.loc[
             (
                 (dataframe['macd_1d'] < dataframe['macdsignal_1d'])
