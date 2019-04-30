@@ -19,12 +19,14 @@ logger = logging.getLogger("IchimokuStrategy")
 class Ichimoku(IStrategy):
 
     cache = {}
+    min_days = 30
 
     def get_extend_historical(self, pair: str, dataframe: DataFrame) -> DataFrame:
 
         if hasattr(self, 'dp'):
             if self.dp.runmode in (RunMode.LIVE, RunMode.DRY_RUN):
-                if pair not in self.cache:
+                min_date = dataframe['date'].min()
+                if pair not in self.cache or self.cache[pair]["date"].max() < min_date:
                     logger.info(f"Downloading historical ohlc for pair: {pair})")
                     # hist = self.dp._exchange.get_history(pair=pair, ticker_interval=self.ticker_interval,
                     #                         since_ms=int(arrow.utcnow().shift(days=-60).float_timestamp) * 1000)
@@ -44,8 +46,10 @@ class Ichimoku(IStrategy):
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         
-
+        
         dataframe = self.get_extend_historical(metadata['pair'], dataframe)
+        if (dataframe['date'].max() - dataframe['date'].min()).days < self.min_days:
+            return dataframe
 
         #Default time interval
         #indicators - Hikenashi Macd
@@ -84,7 +88,7 @@ class Ichimoku(IStrategy):
 
     def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
-        if (dataframe['date'].max() - dataframe['date'].min()).days < 30:
+        if (dataframe['date'].max() - dataframe['date'].min()).days < self.min_days:
             dataframe['buy'] = 0
             return dataframe
 
@@ -111,6 +115,7 @@ class Ichimoku(IStrategy):
             (
                 (
                     (dataframe['macd'] > dataframe['macdsignal']) &
+                    (dataframe['macd'].shift() > dataframe['macdsignal'].shift()) &
                     (dataframe['macd_4h'] > dataframe['macdsignal_4h']) &
                     (dataframe['sar_1d'] < dataframe['open']) &            # bull market - need not turn off.
                     (dataframe['macd_1d'] > dataframe['macdsignal_1d']) &
@@ -127,6 +132,10 @@ class Ichimoku(IStrategy):
 
     def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         
+        if (dataframe['date'].max() - dataframe['date'].min()).days < self.min_days:
+            dataframe['sell'] = 0
+            return dataframe
+
         dataframe.loc[
             (
                 (dataframe['macd_1d'] < dataframe['macdsignal_1d'])

@@ -231,7 +231,8 @@ def download_pair_history(datadir: Optional[Path],
 
         misc.file_dump_json(filename, data)
         return True
-    except BaseException:
+    except BaseException as e:
         logger.info('Failed to download the pair: "%s", Interval: %s',
                     pair, ticker_interval)
+        print(e)
         return False

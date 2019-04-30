@@ -5,6 +5,7 @@ function run_container() {
 
     args="-d"
     strategy="Ichimoku"
+    env=""
     for var in "$@"
     do
         case $var in
@@ -14,56 +15,105 @@ function run_container() {
         -p)
             prod=1
             ;;
+        stop)
+            stop=1
+            ;;
+        logs)
+            logs=1
+            ;;
+        *)
+            env=".$var"
+            ;;
         esac
     done
     
+    if [ $prod ]; then
+        environment="PROD"
+        config="config$env.prod.json"
+        name="freqtrade${env//./-}"
+        tradesdb="user_data/trades/prod/tradesv3$env.sqlite"
+    else
+        environment="DEV"
+        config="config$env.json"
+        name="freqtrade${env//./-}-dev"
+        tradesdb="user_data/trades/dryrun/tradesv3.dryrun$env.sqlite"
+    fi
+    
+    if ! [ -f $config ]; then
+        echo "Could not find configuration :$config"
+        return
+    fi        
+
+    if [ $stop ]; then
+        echo "***Stopping freqtrade container($environment)***"
+        echo "Configuration: $config"
+        echo "Name: $name"
+        echo "Trades DB: $tradesdb"
+
+        echo "Stopping container $name"
+        docker stop $name
+        docker rm $name
+        return
+    fi
+
+    if [ $logs ]; then
+        echo "***Logs for freqtrade container($environment)***"
+        echo "Configuration: $config"
+        echo "Name: $name"
+        echo "Trades DB: $tradesdb"
+        docker logs -f $name --tail 1000
+        return
+    fi
+
     mkdir -p user_data/data/history
 
-    if [ $prod ]; then
-        echo "***Starting freqtrade container(PROD)***"
-        docker stop freqtrade > /dev/null
-        docker rm freqtrade > /dev/null
-        
-        touch user_data/trades/prod/tradesv3.sqlite
+    echo "***Deploying freqtrade container($environment)***"
+    echo "Configuration: $config"
+    echo "Name: $name"
+    echo "Trades DB: $tradesdb"
 
-        docker run $args \
-                -v /etc/localtime:/etc/localtime:ro \
-                -v $(pwd)/config.prod.json:/freqtrade/config.json \
-                -v $(pwd)/user_data/trades/prod/tradesv3.sqlite:/freqtrade/user_data/trades/prod/tradesv3.sqlite \
-                -v $(pwd)/user_data/data/history:/freqtrade/user_data/data/history \
-                -v $(pwd)/user_data/strategies:/freqtrade/user_data/strategies \
-                --name freqtrade \
-                --restart unless-stopped \
-                freqtrade \
-                -s $strategy
-    else
-        echo "***Starting freqtrade container(DEV)***"
-        docker stop freqtrade > /dev/null
-        docker rm freqtrade > /dev/null
+    echo "Stopping container $name"
+    docker stop $name > /dev/null
+    docker rm $name > /dev/null
 
-        touch user_data/trades/dryrun/tradesv3.dryrun.sqlite
-        docker run $args \
+    echo "Starting container $name"
+    if ! [ -f $tradesdb ]; then
+        echo "Could not find $tradesdb. Creating one."
+        touch $tradesdb
+    fi
+
+    docker run $args \
             -v /etc/localtime:/etc/localtime:ro \
-            -v $(pwd)/config.json:/freqtrade/config.json \
-            -v $(pwd)/user_data/trades/dryrun/tradesv3.dryrun.sqlite:/freqtrade/user_data/trades/dryrun/tradesv3.dryrun.sqlite \
+            -v $(pwd)/$config:/freqtrade/config.json \
+            -v $(pwd)/$tradesdb:/freqtrade/$tradesdb \
             -v $(pwd)/user_data/data/history:/freqtrade/user_data/data/history \
             -v $(pwd)/user_data/strategies:/freqtrade/user_data/strategies \
-            --name freqtrade \
+            --name $name \
             --restart unless-stopped \
             freqtrade \
             -s $strategy
-    fi
-
 }
 
 function run_backtest() {
+
     config="config.json"
+    if [ -f "config.$1.json" ]; then
+        config="config.$1.json"
+        shift
+    fi
+
     strategy="Ichimoku"
+    echo "Using configuration $config. Strategy $strategy"
     freqtrade -c $config -s $strategy backtesting $*
 }
 
 function run_hyperopt() {
     config="config.json"
+    if [ -f "config.$1.json" ]; then
+        config="config.$1.json"
+        shift
+    fi
+
     optimizer="IchimokuOpts"
 
     n=$1
@@ -168,13 +218,15 @@ function build() {
 function help() {
     echo "usage:"
     echo "./start.sh build                      Build freqtrade docker image"
-    echo "./start.sh container                  Run docker container"
-    echo "./start.sh container -p               Run docker container in Production"
-    echo "./start.sh container -i               Run docker container interactively"
-    echo "./start.sh container -i -p            Run docker container interactively in Production"
+    echo "./start.sh container [NAME]           Run docker container"
+    echo "./start.sh container [NAME] stop      Stop docker container"
+    echo "./start.sh container [NAME] logs      Tail Logs from docker container"
+    echo "./start.sh container [NAME] -p        Run docker container in Production"
+    echo "./start.sh container [NAME] -i        Run docker container interactively"
+    echo "./start.sh container [NAME] -i -p     Run docker container interactively in Production"
     echo "./start.sh                            Run freqtrade dev locally"
-    echo "./start.sh backtest                   Run freqtrade backtesting"
-    echo "./start.sh hyperopt N                 Run freqtrade hyper optimization N times"
+    echo "./start.sh backtest [NAME[.prod]]     Run freqtrade backtesting"
+    echo "./start.sh hyperopt [NAME[.prod]] N   Run freqtrade hyper optimization N times"
     echo "./start.sh download [-d 180] [-t 4h]  Download data for given timeframe"
     echo "./start.sh clean                      Clean up workspace. Deletes dryrun.sqlite, hyperopt, plotting etc"
     echo "./start.sh clean -p                   Clean up workspace. Same as clean. Also cleans prod tradesv3.sqlite"
