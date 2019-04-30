@@ -25,7 +25,8 @@ class Ichimoku(IStrategy):
 
         if hasattr(self, 'dp'):
             if self.dp.runmode in (RunMode.LIVE, RunMode.DRY_RUN):
-                if pair not in self.cache:
+                min_date = dataframe['date'].min()
+                if pair not in self.cache or self.cache[pair]["date"].max() < min_date:
                     logger.info(f"Downloading historical ohlc for pair: {pair})")
                     # hist = self.dp._exchange.get_history(pair=pair, ticker_interval=self.ticker_interval,
                     #                         since_ms=int(arrow.utcnow().shift(days=-60).float_timestamp) * 1000)
