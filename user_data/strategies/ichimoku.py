@@ -115,6 +115,7 @@ class Ichimoku(IStrategy):
             (
                 (
                     (dataframe['macd'] > dataframe['macdsignal']) &
+                    (dataframe['macd'].shift() > dataframe['macdsignal'].shift()) &
                     (dataframe['macd_4h'] > dataframe['macdsignal_4h']) &
                     (dataframe['sar_1d'] < dataframe['open']) &            # bull market - need not turn off.
                     (dataframe['macd_1d'] > dataframe['macdsignal_1d']) &
