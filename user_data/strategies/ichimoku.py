@@ -119,7 +119,8 @@ class Ichimoku(IStrategy):
                     (dataframe['macd'].shift() > dataframe['macdsignal'].shift()) &
                     (dataframe['macd_4h'] > dataframe['macdsignal_4h']) &
                     (dataframe['sar_1d'] < dataframe['open']) &
-                    
+                    (dataframe['sar'] < dataframe['open']) &
+
                     (dataframe['macd_1d'] > dataframe['macdsignal_1d']) &
                     (dataframe['rsi_1d'] < 70) &
                     (dataframe['open'] > dataframe['senkou_span_a_4h']) &
