@@ -1,6 +1,42 @@
 #!/usr/bin/env bash
 #encoding=utf8
 
+function run_local() {
+
+    strategy="Ichimoku"
+    env=""
+    for var in "$@"
+    do
+        case $var in
+        -p)
+            prod=1
+            ;;
+        *)
+            env=".$var"
+            ;;
+        esac
+    done
+
+    if [ $prod ]; then
+        environment="PROD"
+        config="config$env.prod.json"
+    else
+        environment="DEV"
+        config="config$env.json"
+    fi
+    
+    if ! [ -f $config ]; then
+        echo "Could not find configuration :$config"
+        return
+    fi        
+
+    echo "***Running freqtrade locally($environment)***"
+    echo "Configuration: $config"
+    echo "Strategy: $strategy"
+
+    freqtrade -c $config -s $strategy
+}
+
 function run_container() {
 
     args="-d"
@@ -138,26 +174,49 @@ function clean() {
         -p)
             prod=1
             ;;
+        *)
+            env=".$var"
+            ;;
         esac
     done
 
+    if [ $prod ]; then
+        environment="PROD"
+        config="config$env.prod.json"
+        tradesdb="user_data/trades/prod/tradesv3$env.sqlite"
+    else
+        environment="DEV"
+        config="config$env.json"
+        tradesdb="user_data/trades/dryrun/tradesv3.dryrun$env.sqlite"
+    fi
+
+    echo "***Cleaning freqtrade environment($environment)***"
+    echo "Configuration: $config"
+    echo "Name: $name"
+    echo "Trades DB: $tradesdb"
+
+    echo "***Cleaning hyperopt results...***"
     rm -f user_data/hyperopt_results.pickle
     rm -f user_data/hyperopt_tickerdata.pkl
+    echo "***Cleaning plots...***"
     rm -f user_data/freqtrade-plot.html
-    rm -f user_data/trades/dryrun/tradesv3.dryrun.sqlite
-    touch user_data/trades/dryrun/tradesv3.dryrun.sqlite
 
+    echo "***Cleaning trades for env ($config)...***"
     if [ $prod ]; then
-
         read -p "Delete prod tradesv3.sqlite. Are you sure?[No/Yes)?" choice
         case "$choice" in 
             Yes) 
-            rm -f user_data/trades/prod/tradesv3.sqlite
-            touch user_data/trades/prod/tradesv3.sqlite
-            echo "Deleted Prod tradesv3.sqlite"
-            ;;
+                rm -f $tradesdb
+                touch $tradesdb
+                echo "Deleted Prod tradesv3.sqlite"
+                ;;
         esac
+    else
+        rm -f $tradesdb
+        touch $tradesdb
     fi
+    
+
 }
 
 function run() {
@@ -193,8 +252,7 @@ function run() {
             clean $*
             ;;
         *)
-            help
-            exit 1
+            run_local $*
             ;;
     esac
 }

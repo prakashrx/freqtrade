@@ -1,0 +1,151 @@
+{
+    "max_open_trades": 5,
+    "stake_currency": "ETH",
+    "stake_amount": 0.64,
+    "fiat_display_currency": "USD",
+    "ticker_interval" : "15m",
+    "dry_run": true,
+    "db_url": "sqlite:///user_data/trades/dryrun/tradesv3.dryrun.eth.sqlite",
+    "trailing_stop": true,
+    "trailing_stop_positive":  0.001,
+    "trailing_stop_positive_offset":  0.01,
+    "trailing_only_offset_is_reached": true,
+    "minimal_roi" : {   
+        "0": 100
+    },
+    "order_types" : {
+        "buy": "limit",
+        "sell": "limit",
+        "stoploss": "market",
+        "stoploss_on_exchange": false
+    },
+    "stoploss" : -10,
+    "order_time_in_force" : {
+        "buy": "gtc",
+        "sell": "gtc"
+    },
+    "unfilledtimeout": {
+        "buy": 10,
+        "sell": 30
+    },
+    "bid_strategy": {
+        "ask_last_balance": 0.99,
+        "use_order_book": true,
+        "order_book_top": 1,
+        "check_depth_of_market": {
+            "enabled": false,
+            "bids_to_ask_delta": 1
+        }
+    },
+    "ask_strategy":{
+        "use_order_book": false,
+        "order_book_min": 1,
+        "order_book_max": 9
+    },
+    "pairlist": {
+        "method": "StaticPairList", 
+        "config": {
+            "number_assets": 50,
+            "sort_key": "quoteVolume"
+        }
+    },
+    "exchange": {
+        "name": "binance",
+        "key": "",
+        "secret": "",
+        "ccxt_config": {"enableRateLimit": true},
+        "ccxt_async_config": {
+            "enableRateLimit": true,
+            "rateLimit": 500
+        },
+        "pair_whitelist": [
+            "XRP/ETH",
+            "IOTA/ETH",
+            "FUEL/ETH",
+            "EOS/ETH",
+            "ETC/ETH",
+            "LTC/ETH",
+            "TRX/ETH",
+            "NEO/ETH",
+            "BAT/ETH",
+            "ADA/ETH",
+            "IOST/ETH",
+            "NPXS/ETH",
+            "XMR/ETH",
+            "QKC/ETH",
+            "ENJ/ETH",
+            "VET/ETH",
+            "HOT/ETH",
+            "NAS/ETH",
+            "XLM/ETH",
+            "ELF/ETH",
+            "NANO/ETH",
+            "ONT/ETH",
+            "OMG/ETH",
+            "MFT/ETH",
+            "ZIL/ETH",
+            "ICX/ETH",
+            "LINK/ETH",
+            "INS/ETH",
+            "QTUM/ETH",
+            "DENT/ETH",
+            "DASH/ETH",
+            "ZEC/ETH",
+            "VIB/ETH",
+            "WTC/ETH",
+            "WAVES/ETH",
+            "ARN/ETH",
+            "SC/ETH",
+            "AE/ETH",
+            "KNC/ETH",
+            "MCO/ETH",
+            "XVG/ETH",
+            "EVX/ETH",
+            "LOOM/ETH",
+            "THETA/ETH",
+            "STRAT/ETH",
+            "ZRX/ETH",
+            "AMB/ETH",
+            "GNT/ETH",
+            "DGD/ETH"
+        ],
+        "pair_blacklist": [
+            "BNB/ETH",
+            "USDS/ETH",
+            "USDC/ETH",
+            "TUSD/ETH",
+            "PAX/ETH"
+        ]
+    },
+    "experimental": {
+        "use_sell_signal": true,
+        "sell_profit_only": false,
+        "ignore_roi_if_buy_signal": false
+    },
+    "edge": {
+        "enabled": false,
+        "process_throttle_secs": 3600,
+        "calculate_since_number_of_days": 7,
+        "capital_available_percentage": 0.5,
+        "allowed_risk": 0.01,
+        "stoploss_range_min": -0.01,
+        "stoploss_range_max": -0.1,
+        "stoploss_range_step": -0.01,
+        "minimum_winrate": 0.60,
+        "minimum_expectancy": 0.20,
+        "min_trade_number": 10,
+        "max_trade_duration_minute": 1440,
+        "remove_pumps": false
+    },
+    "telegram": {
+        "enabled": true,
+        "token": "609754487:AAH721XtKfPhXOUes-0DgDQB1aGpS2rmhRo",
+        "chat_id": "699024426"
+    },
+    "initial_state": "running",
+    "forcebuy_enable": false,
+    "internals": {
+        "process_throttle_secs": 5
+    },
+    "export" : true
+}
