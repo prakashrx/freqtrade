@@ -2,6 +2,7 @@
 import logging
 import talib.abstract as ta
 import pandas as pd
+import numpy as np
 from pandas import DataFrame
 import arrow
 from pathlib import Path
@@ -16,7 +17,7 @@ import freqtrade.indicators as indicators
 
 logger = logging.getLogger("IchimokuStrategy")
 
-class Ichimoku(IStrategy):
+class RenkoStrategy(IStrategy):
 
     cache = {}
     min_days = 30
@@ -51,41 +52,48 @@ class Ichimoku(IStrategy):
         if (dataframe['date'].max() - dataframe['date'].min()).days < self.min_days:
             return dataframe
 
-        #Default time interval
-        #indicators - Hikenashi Macd
-        macd = ta.MACD(dataframe, fastperiod=14, slowperiod=27, signalperiod=9)
-        dataframe['macd'] = macd['macd']
-        dataframe['macdsignal'] = macd['macdsignal']
-        dataframe['macdhist'] = macd['macdhist']
-        dataframe['sar'] = ta.SAR(dataframe)
-
-        #Daily interval
-        #indicators - Macd
-        dataframe_1d =  resample_to_interval(dataframe, '1d')
-        macd = ta.MACD(dataframe_1d, fastperiod=14, slowperiod=27, signalperiod=15)
-        dataframe_1d['macd_1d'] = macd['macd']
-        dataframe_1d['macdsignal_1d'] = macd['macdsignal']
-        dataframe_1d['macdhist_1d'] = macd['macdhist']
-        dataframe_1d['sar_1d'] = ta.SAR(dataframe_1d, acceleration=0.15, maximum=1)
-        dataframe_1d['close_1d'] = dataframe_1d['close']
-        dataframe_1d['rsi_1d'] = ta.RSI(dataframe_1d)
-
-        #4h interval
-        #indicators - Ichimoku cloud, Macd
-        dataframe_4h =  resample_to_interval(dataframe, '4h')
-        ichimoku = indicators.ichimoku(dataframe_4h, tenkan_sen_window=15, kijun_sen_window=27, senkou_span_offset=15, senkou_span_b_window=50)
-        dataframe_4h['tenkan_sen_4h'] = ichimoku['tenkan_sen']
-        dataframe_4h['kijun_sen_4h'] = ichimoku['kijun_sen']
-        dataframe_4h['senkou_span_a_4h'] = ichimoku['senkou_span_a']
-        dataframe_4h['senkou_span_b_4h'] = ichimoku['senkou_span_b']
-        macd = ta.MACD(dataframe_4h, fastperiod=14, slowperiod=27, signalperiod=9)
-        dataframe_4h['macd_4h'] = macd['macd']
-        dataframe_4h['macdsignal_4h'] = macd['macdsignal']
-
-        dataframe = resampled_merge(dataframe, dataframe_4h)
-        dataframe = resampled_merge(dataframe, dataframe_1d)
+        print(f"Calculating Renko for Pair: {metadata['pair']}")
+        renko = self.calculate_renko(dataframe)
+        print(f"Finished Calculating Renko for Pair: {metadata['pair']}")
+        dataframe = pd.merge(dataframe, renko, on='date', how='left')
+        dataframe.fillna(method='ffill', inplace=True)
 
         return dataframe
+
+    def calculate_renko(self, df):
+        df = df.dropna()
+        df['atr'] = ta.ATR(df)
+        df['atr'] = df['atr'].rolling(14).mean().round()
+
+        renko = pd.DataFrame(columns=['date', 'renko_open', 'renko_close'])
+        renko.loc[0] = [df.loc[0,'date'],df.loc[0,'close'],df.loc[0,'close']]
+
+        for index,row in df.iloc[1:].iterrows():
+            prev_close = renko.iloc[-1]['renko_close']
+            prev_open  = renko.iloc[-1]['renko_open']
+            atr = row['atr']
+            direction = 1 if prev_close >= prev_open else -1
+            if direction == 1:
+                while prev_close + atr <= row['close']:
+                    renko.loc[len(renko)] = [row['date'], prev_close, prev_close + atr]
+                    prev_open = prev_close
+                    prev_close = prev_close + atr
+                while prev_open - atr >= row['close']:
+                    renko.loc[len(renko)] = [row['date'], prev_open, prev_open - atr]
+                    prev_open = prev_open - atr
+            else:
+                while prev_close - atr >= row['close']:
+                    renko.loc[len(renko)] = [row['date'], prev_close, prev_close - atr]
+                    prev_open = prev_close
+                    prev_close = prev_close - atr
+                while prev_open + atr <= row['close']:
+                    renko.loc[len(renko)] = [row['date'], prev_open, prev_open + atr]
+                    prev_open = prev_open + atr
+                    
+        renko['renko_ema13'] = ta.EMA(renko,timeperiod=13, price='renko_open')
+
+        renko.dropna(inplace=True)
+        return renko.groupby('date').last()
 
     def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
@@ -115,18 +123,8 @@ class Ichimoku(IStrategy):
         dataframe.loc[
             (
                 (
-                    (dataframe['macd'] > dataframe['macdsignal']) &
-                    (dataframe['macd'].shift() > dataframe['macdsignal'].shift()) &
-                    (dataframe['macd_4h'] > dataframe['macdsignal_4h']) &
-                    (dataframe['sar_1d'] < dataframe['open']) &
-                    (dataframe['sar'] < dataframe['open']) &
-
-                    (dataframe['macd_1d'] > dataframe['macdsignal_1d']) &
-                    (dataframe['rsi_1d'] < 70) &
-                    (dataframe['open'] > dataframe['senkou_span_a_4h']) &
-                    (dataframe['open'] > dataframe['senkou_span_b_4h']) &
-                    (dataframe['close'] > dataframe['senkou_span_a_4h']) &
-                    (dataframe['close'] > dataframe['senkou_span_b_4h'])
+                    (dataframe['renko_ema13'] < dataframe['renko_open']) &
+                    (dataframe['renko_open'] < dataframe['renko_close'])
                 )
             ),
             'buy'] = 1
@@ -141,8 +139,7 @@ class Ichimoku(IStrategy):
 
         dataframe.loc[
             (
-                #(dataframe['macd_1d'] < dataframe['macdsignal_1d'])
-                 (dataframe['sar_1d'] > dataframe['open']) 
+                 (dataframe['renko_open'] > dataframe['renko_close']) 
             ),
             'sell'] = 1
         return dataframe
