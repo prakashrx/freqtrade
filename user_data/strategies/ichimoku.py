@@ -122,7 +122,7 @@ class Ichimoku(IStrategy):
                     (dataframe['sar'] < dataframe['open']) &
 
                     (dataframe['macd_1d'] > dataframe['macdsignal_1d']) &
-                    (dataframe['rsi_1d'] < 70) &
+                    #(dataframe['rsi_1d'] < 70) &
                     (dataframe['open'] > dataframe['senkou_span_a_4h']) &
                     (dataframe['open'] > dataframe['senkou_span_b_4h']) &
                     (dataframe['close'] > dataframe['senkou_span_a_4h']) &
