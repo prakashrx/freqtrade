@@ -95,6 +95,7 @@ class Telegram(RPC):
             CommandHandler('count', self._count),
             CommandHandler('reload_conf', self._reload_conf),
             CommandHandler('stopbuy', self._stopbuy),
+            CommandHandler('maxtrade', self._maxtrade),
             CommandHandler('whitelist', self._whitelist),
             CommandHandler('blacklist', self._blacklist, pass_args=True),
             CommandHandler('edge', self._edge),
@@ -402,6 +403,22 @@ class Telegram(RPC):
         self._send_msg('Status: `{status}`'.format(**msg), bot=bot)
 
     @authorized_only
+    def _maxtrade(self, bot: Bot, update: Update) -> None:
+        """
+        Handler for /maxtrade.
+        Sets max_open_trades to count
+        :param bot: telegram bot
+        :param update: message update
+        :return: None
+        """
+        count = update.message.text.replace('/maxtrade', '').strip()
+        try:
+            msg = self._rpc_maxtrade(int(count))
+            self._send_msg('Status: `{status}`'.format(**msg), bot=bot)
+        except Exception as e:
+            self._send_msg(str(e), bot=bot)
+
+    @authorized_only
     def _forcesell(self, bot: Bot, update: Update) -> None:
         """
         Handler for /forcesell <id>.
@@ -551,6 +568,7 @@ class Telegram(RPC):
                   "\n" \
                   "*/balance:* `Show account balance per currency`\n" \
                   "*/stopbuy:* `Stops buying, but handles open trades gracefully` \n" \
+                  "*/maxtrade <count>:* `Sets max open trade count.` \n" \
                   "*/reload_conf:* `Reload configuration file` \n" \
                   "*/whitelist:* `Show current whitelist` \n" \
                   "*/blacklist [pair]:* `Show current blacklist, or adds one or more pairs " \
