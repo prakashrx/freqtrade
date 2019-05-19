@@ -58,6 +58,7 @@ class Ichimoku(IStrategy):
         dataframe['macdsignal'] = macd['macdsignal']
         dataframe['macdhist'] = macd['macdhist']
         dataframe['sar'] = ta.SAR(dataframe)
+        dataframe['rsi'] = ta.RSI(dataframe)
 
         #Daily interval
         #indicators - Macd
@@ -122,7 +123,7 @@ class Ichimoku(IStrategy):
                     (dataframe['sar'] < dataframe['open']) &
 
                     (dataframe['macd_1d'] > dataframe['macdsignal_1d']) &
-                    #(dataframe['rsi_1d'] < 70) &
+                    (dataframe['rsi'] < 75) &
                     (dataframe['open'] > dataframe['senkou_span_a_4h']) &
                     (dataframe['open'] > dataframe['senkou_span_b_4h']) &
                     (dataframe['close'] > dataframe['senkou_span_a_4h']) &
